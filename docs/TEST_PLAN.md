@@ -41,7 +41,7 @@ Every push to `main` runs these gates. Commits go directly to `main` (admin bypa
 ## 3. Test database lifecycle
 
 - `startupshq_test` in the local Docker Postgres; CI uses a Postgres 17 service container.
-- Migrations once per run (including `immutable_unaccent` and extensions); **truncate + reseed before each suite file**.
+- Migrations once per run via Vitest global setup (including `immutable_unaccent` and extensions), so every run proves the committed migrations apply; **truncate + reseed before each suite file**. Constraint and privilege tests run inside rolled-back transactions instead (`constraints.test.ts`).
 - `scripts/seed.ts --test` so fixtures equal development data.
 - DB-role tests connect as `app_rw`, `retention` and `backup_ro`, created by a test-only setup migration mirroring SEC-10.
 

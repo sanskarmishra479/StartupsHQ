@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 0 complete — Phase 1 (schema) next · **Last updated:** 2026-09-14
+**Status:** Phase 1 complete — Phase 2 (seed data) next · **Last updated:** 2026-09-14
 
 ---
 
@@ -76,24 +76,24 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Goal:** the complete schema with every constraint, index and role from SRS §4.
 
-- [ ] Migration prologue: `pg_trgm`, `unaccent`, and the IMMUTABLE `immutable_unaccent(text)` wrapper **(DM-13)** — `unaccent()` alone is rejected in generated columns
-- [ ] `schema/enums.ts` — all enums incl. `round_class`, `media_purpose`, `media_state`, `import_status` **(DM-01)**
-- [ ] `schema/locations.ts` (unique NULLS NOT DISTINCT), `schema/industries.ts` **(DM-07, DM-08)**
-- [ ] `schema/media.ts` — `media_assets` **(DM-11)**
-- [ ] `schema/startups.ts` **(DM-02)** — common lifecycle columns (`status`, `first_published_at`, `archived_at`); asset FKs; `total_raised_usd`, `total_debt_usd`, `latest_round_id`; `simple`-config generated `search_vector`; acquisition + founded_on checks; **no `now()`-based CHECK** (founded_year range lives in Zod)
-- [ ] `schema/founders.ts` **(DM-03)** · `schema/investors.ts` **(DM-04)** · `schema/batches.ts` **(DM-05)**
-- [ ] `schema/rounds.ts` **(DM-06)** — generated `round_class`; currency/fx columns; undisclosed and fx checks
-- [ ] `schema/fx.ts` — `fx_rates` **(DM-11)**
-- [ ] `schema/redirects.ts` — `slug_redirects` **(DM-11)**
-- [ ] `schema/taxonomy.ts` **(DM-09)**
-- [ ] `schema/joins.ts` **(DM-10)** — `startup_founders` with `id` PK + unique (startup, founder, role, joined_year) NULLS NOT DISTINCT + `source_url` + `left_year ≥ joined_year`; `investments` unique **NULLS NOT DISTINCT**; `startup_batches`; `startup_industries` with partial unique primary
-- [ ] `schema/auth.ts` — Better Auth tables incl. `two_factor`; `users.role` **(DM-12)**
-- [ ] `schema/ops.ts` — `audit_log`, `import_jobs` (rows jsonb, sha256, expires_at), `erasure_log` **(DM-12)**
-- [ ] Indexes per **DM-13**, incl. one keyset index per sort and trigram on `immutable_unaccent(lower(name))`
-- [ ] Roles migration: `app_rw` (DML; INSERT-only on `audit_log`), `migrator`, `retention`, `backup_ro` **(SEC-10)**
-- [ ] `pnpm db:generate` → hand-review SQL → commit
+- [x] Migration `0000_prologue`: `pg_trgm`, `unaccent`, the IMMUTABLE `immutable_unaccent(text)` wrapper **(DM-13)** (verified inside a generated column), NOLOGIN group roles and default privileges
+- [x] `schema/enums.ts` — all 13 enums incl. `round_class`, `media_purpose`, `media_state`, `import_status` **(DM-01)**
+- [x] `schema/locations.ts` (unique NULLS NOT DISTINCT), `schema/industries.ts` **(DM-07, DM-08)**
+- [x] `schema/media.ts` — `media_assets` with staging/attached lifecycle **(DM-11)**
+- [x] `schema/startups.ts` **(DM-02)** — shared lifecycle columns and checks; asset FKs; derived totals; `simple`-config generated `search_vector`; acquisition and founded_on checks; https-only URL checks; **no `now()`-based CHECK**
+- [x] `schema/founders.ts` **(DM-03)** (plus `og_asset_id`) · `schema/investors.ts` **(DM-04)** · `schema/batches.ts` **(DM-05)**
+- [x] `schema/rounds.ts` **(DM-06)** — generated `round_class` (verified for every round type); currency/fx columns; undisclosed and fx checks
+- [x] `schema/fx.ts` — `fx_rates` **(DM-11)**
+- [x] `schema/redirects.ts` — `slug_redirects` **(DM-11)**
+- [x] `schema/taxonomy.ts` **(DM-09)**
+- [x] `schema/joins.ts` **(DM-10)** — `startup_founders` stints (`id` PK, NULLS NOT DISTINCT stint key, `source_url`, `left_year ≥ joined_year`); `investments` unique **NULLS NOT DISTINCT**; `startup_batches`; `startup_industries` with partial unique primary
+- [x] `schema/auth.ts` — generated with the Better Auth 1.7.4 CLI, then aligned (timestamptz, `user_role` enum, snake_case index names); tables `users`, `sessions`, `accounts`, `verifications`, `two_factors` **(DM-12)**
+- [x] `schema/ops.ts` — `audit_log`, `import_jobs` (rows jsonb, sha256, expires_at), `erasure_log` **(DM-12)**; `0002_append_only_privileges` makes `audit_log`/`erasure_log` insert-only for the app and limits the retention role to `audit_log`
+- [x] Indexes per **DM-13** — 36, incl. one keyset index per sort and trigram GIN on `immutable_unaccent(lower(name))`. Drizzle `relations` moved to Phase 4, next to the queries that exercise them
+- [x] Roles **(SEC-10)**: migrations create NOLOGIN group roles `startupshq_app`, `startupshq_retention`, `startupshq_backup`; per-environment LOGIN users (and the migrator) are created outside git in Phase 22
+- [x] `pnpm db:generate` → hand-review SQL → commit. Review found a **drizzle-kit bug: CHECK SQL is truncated at `;`** — fixed, and guarded by `schema.test.ts`. Vitest now migrates the test database before every run, so CI proves the migrations apply
 
-**EXIT:** migrations run clean on an empty DB · Postgres itself rejects: undisclosed-with-amount, non-USD without fx fields, two primary industries, orphan round, duplicate `(startup, investor, NULL)` investment · `app_rw` cannot `CREATE TABLE` or `UPDATE audit_log`.
+**EXIT:** ✅ met 2026-09-14 — migrations run clean on an empty DB · Postgres itself rejects: undisclosed-with-amount, non-USD without fx fields, two primary industries, orphan round, duplicate `(startup, investor, NULL)` investment · `app_rw` cannot `CREATE TABLE` or `UPDATE audit_log` — all asserted in `constraints.test.ts`.
 
 ---
 
@@ -147,6 +147,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] `src/server/dto/*` — minimal public DTOs; `Image` with variants **(SEC-15)**
 - [ ] **`src/server/cache/*`** — `'use cache'` + `cacheTag` wrappers accepting only `PUBLIC_READ`, with runtime guard **(SEC-03.6, NFR-02)**
 - [ ] Keyset pagination per sort using DM-13 indexes
+- [ ] `src/server/db/relations.ts` — Drizzle relations, written and tested alongside the queries that use them (moved from Phase 1)
 - [ ] Integration tests per TEST_PLAN §6 (reads), incl. pagination stability for each sort and "two visitors share one cache entry"
 - [ ] Assert ≤ 3 round-trips for the company page on a miss **(NFR-01)**
 
@@ -165,7 +166,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] **FX conversion** on round write; admin manual-rate path **(FR-406)**
 - [ ] Derived totals (`total_raised_usd` equity+convertible, `total_debt_usd`, `latest_round_id`) in-transaction **(FR-404)**
 - [ ] `services/audit.ts` — in-transaction, personal fields by name only **(FR-405, SEC-11)**
-- [ ] `services/privacy.ts` — request records; `eraseFounder` with audit scrub + `erasure_log` **(FR-410)**
+- [ ] `services/privacy.ts` — request records; `eraseFounder` with audit scrub + `erasure_log` **(FR-410)**. The app role cannot UPDATE `audit_log`, so the scrub goes through a narrow `SECURITY DEFINER` function that can only redact one entity's audit rows
 - [ ] `revalidateTag(tag, { expire: 0 })` for every affected tag, incl. neighbours **(NFR-02)**
 - [ ] `scripts/recompute-derived.ts`
 - [ ] Tests per TEST_PLAN §6 (writes, lifecycle, privacy, caching freshness)
@@ -177,7 +178,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 6 · Authentication  *(SEC-04, SEC-08, FR-201, FR-208)*
 
-- [ ] `auth/better-auth.ts` — Drizzle adapter, email + password (scrypt default), **two-factor (TOTP) plugin, mandatory**, 10 recovery codes
+- [ ] `auth/better-auth.ts` — Drizzle adapter, email + password (scrypt default), **two-factor (TOTP) plugin, mandatory**, 10 recovery codes. Better Auth's 2FA is opt-in, so enforcement is ours: `requireEditor()` refuses users without `two_factor_enabled`, and first login forces enrollment
 - [ ] `[?]` **Spike: cookie prefix.** Verify whether Better Auth can emit a `__Host-` cookie on the admin origin. If yes, use it; if not, `__Secure-` with **no `Domain` attribute** (host-only). Record the outcome in SRS SEC-04.
 - [ ] Sessions: httpOnly, Secure, SameSite=Lax, rotation on privilege change, server-side revocation
 - [ ] Better Auth rate limiter → Upstash secondary storage (in-memory does not work on serverless)
@@ -382,7 +383,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] **Budget alerts** at 50 / 80 / 100% on Vercel, Neon, Upstash
 - [ ] DNS: public domain + `admin.` subdomain; TLS on both
 - [ ] Vercel env vars per SRS §9, **production secrets scoped to Production only**; migrator credential **not** in Vercel
-- [ ] Neon: `app_rw`, `migrator`, `retention`, `backup_ro` roles; pooler; scale-to-zero kept on
+- [ ] Neon: per-environment LOGIN users granted the migration-created group roles (`startupshq_app`, `startupshq_retention`, `startupshq_backup`), plus the migrator; pooler; scale-to-zero kept on
 - [ ] Previews: Neon branch from the seed-data branch; **Vercel Authentication** on
 - [ ] `migrate.yml` live in the protected `production` environment; expand/contract rule documented in `docs/DEPLOY.md`
 - [ ] **Vercel WAF** rules from Phase 12 applied to `/api/v1/*`; bot challenge on list endpoints

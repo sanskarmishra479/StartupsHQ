@@ -63,6 +63,7 @@ Each ADR carries a **Revisit if** line naming the condition that should reopen i
 | 2026-09-14 | Repository made public: ADR-021 and SEC-20 (public-repo hygiene). pnpm 12 supply-chain settings confirmed from pnpm docs (`strictDepBuilds`, `allowBuilds`, `minimumReleaseAge: 4320`), resolving the Phase 0 `[?]` |
 | 2026-09-14 | Decisions: direct pushes to `main` with required CI (fix red runs immediately); no license — all rights reserved |
 | 2026-09-14 | Phase 0 complete. Dependabot cannot update pnpm 12 lockfiles: npm removed from Dependabot, weekly full-lockfile audit added; npm version updates by monthly manual review |
+| 2026-09-14 | Phase 1 complete: 23-table schema, NOLOGIN group roles with append-only audit privileges, constraint and privilege tests. A drizzle-kit bug (CHECK SQL truncated at `;`) was found in review and is now guarded by a test |
 
 ## Conventions
 
