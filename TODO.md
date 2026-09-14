@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** not started · **Last updated:** 2026-09-14 (v2 — revised after the doc review)
+**Status:** Phase 0 complete — Phase 1 (schema) next · **Last updated:** 2026-09-14
 
 ---
 
@@ -53,13 +53,14 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] ~~Sentry SDK~~ **moved to Phase 20** — it does nothing before a DSN exists, and deferring it avoids reviewing `@sentry/cli`'s build script now
 - [x] Directory skeleton per SRS §3.2
 - [x] Scripts: `dev build start lint format typecheck test test:watch test:e2e check:leak db:up db:down db:generate db:migrate db:studio` — `test:cov` (Phase 4), `db:seed` (Phase 2), `seed:admin` (Phase 6), `recompute:derived` (Phase 5) are added with their files
-- [x] `.github/workflows/ci.yml`: frozen install → lint → typecheck → tests (Postgres 17.11 service, same digest) → build → `check:leak` → audit; read-only token, SHA-pinned GitHub-owned actions
+- [x] `.github/workflows/ci.yml`: frozen install → lint → typecheck → tests (database started from `docker-compose.yml`, so CI and local share one Dependabot-maintained image) → build → `check:leak` → audit; read-only token, SHA-pinned GitHub-owned actions. First run green 2026-09-14
 - [x] `.github/workflows/migrate.yml` skeleton (main only, `production` environment) **(ADR-015)** — inert until the `ENABLE_PRODUCTION_MIGRATIONS` repo variable is set in Phase 22
-- [x] Dependabot config (`npm`, `github-actions`, `docker-compose`; 3-day cooldown matching `minimumReleaseAge`) — `[?]` confirm Dependabot handles pnpm 12 lockfiles on its first run
+- [x] Dependabot config (`github-actions`, `docker-compose`; 3-day cooldown matching `minimumReleaseAge`; major PostgreSQL upgrades ignored). **`[?]` resolved — npm removed:** Dependabot found updates but failed to rewrite the pnpm 12 lockfile (`unknown_error` on all five), and the dependency graph lists only direct dependencies, so Dependabot alerts miss transitive packages. Covered instead by `.github/workflows/audit.yml` (weekly full-lockfile `pnpm audit`) plus the CI audit gate
+- [ ] **Decide (you): how npm dependencies get version updates** — Renovate (third-party app with current pnpm support), or a monthly manual `pnpm outdated` review. Security coverage does not depend on this choice
 - [ ] **Public repo hardening (SEC-20, ADR-021):**
   - [x] secret scanning + push protection enabled (2026-09-14)
   - [x] Dependabot alerts + security updates enabled (2026-09-14)
-  - [ ] branch protection on `main` requiring the CI status check, with admin bypass — **decided 2026-09-14: direct pushes to `main`; CI must pass, and a red run is fixed before any other work** (apply once `ci.yml` exists)
+  - [x] branch protection on `main`: `verify` check required (bound to the GitHub Actions app), admin bypass for direct pushes, force pushes and deletion blocked (2026-09-14)
   - [x] Actions restricted to GitHub-owned actions only, with **SHA pinning required** by repo policy (2026-09-14)
   - [x] every workflow declares `permissions: contents: read`; repo default token is read-only and cannot approve PRs; no `pull_request_target`
   - [x] fork pull request workflows require approval for all external contributors
@@ -67,7 +68,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
   - [ ] `production` environment with you as required reviewer — created in Phase 22 when secrets exist
 - [x] **LICENSE — decided 2026-09-14: none (all rights reserved).** No LICENSE file is added; the root `README.md` created in Phase 0 states that all rights are reserved
 
-**EXIT:** `docker compose up -d db` healthy · `pnpm typecheck && pnpm lint && pnpm build && pnpm check:leak` pass · CI green on first push · both local origins resolve.
+**EXIT:** ✅ met 2026-09-14 — `docker compose up -d db` healthy · `pnpm typecheck && pnpm lint && pnpm build && pnpm check:leak` pass · CI green on first push · both local origins resolve.
 
 ---
 

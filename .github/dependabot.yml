@@ -1,15 +1,11 @@
-# Dependency updates (SEC-13, SEC-20). Security updates are enabled separately in repo settings.
-# The cooldown mirrors pnpm's minimumReleaseAge of 3 days.
+# Dependency updates (SEC-13, SEC-20). The cooldown mirrors pnpm's minimumReleaseAge of 3 days.
+#
+# npm is deliberately absent: Dependabot cannot update pnpm 12 lockfiles (verified 2026-09-14 —
+# every npm update failed with unknown_error while rewriting the lockfile), and GitHub's
+# dependency graph only sees direct dependencies. The weekly audit workflow
+# (.github/workflows/audit.yml) covers the full lockfile instead.
 version: 2
 updates:
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 3
-    open-pull-requests-limit: 5
-
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -23,3 +19,8 @@ updates:
       interval: weekly
     cooldown:
       default-days: 3
+    ignore:
+      # A major PostgreSQL upgrade needs a data migration and must match the Neon
+      # production version (docs/SRS.md §2), so it is never an automated bump.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]

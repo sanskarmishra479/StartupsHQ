@@ -155,7 +155,7 @@ A compile-time check (`tsd` / `expectTypeOf`) asserts that a function in `src/se
 | SEC-10 | Role tests | `app_rw`: `CREATE TABLE` denied, `UPDATE audit_log` denied; `retention`: can only touch `audit_log`; `backup_ro`: writes denied; migrator credential absent from Vercel env listing (checklist) |
 | SEC-11 | `audit.spec.ts` + retention job test | every mutation audited; personal fields have no values; job nulls IPs > 90 days and deletes rows > 12 months; app code has no UPDATE/DELETE path on `audit_log` |
 | SEC-12 | Forced 500 | no stack, SQL, table name or internal id in body; detail in Sentry with PII scrubbed |
-| SEC-13 | CI + `pnpm-workspace.yaml` review | frozen lockfile; `strictDepBuilds: true` and only `allowBuilds`-listed packages run build scripts; `minimumReleaseAge: 4320`; audit exceptions all carry owner + expiry |
+| SEC-13 | CI + `pnpm-workspace.yaml` review | frozen lockfile; `strictDepBuilds: true` and only `allowBuilds`-listed packages run build scripts; `minimumReleaseAge: 4320`; audit exceptions all carry owner + expiry; weekly `audit.yml` run succeeds |
 | SEC-14 | `ip.spec.ts` | spoofed `X-Forwarded-For` does not change the rate-limit key or the audited IP |
 | SEC-15 | Contract tests | 21st anonymous page → `PAGINATION_DEPTH`; `limit=500` clamped to 48; public DTOs contain no admin-only fields; `robots.txt` disallows `/api/` |
 | SEC-16 | Deployment checklist | preview DB is a branch of the seed branch (no production rows); preview URL requires Vercel Authentication; production secrets not present in Preview scope |
