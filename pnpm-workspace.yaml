@@ -7,6 +7,7 @@ dangerouslyAllowAllBuilds: false
 # Reviewed dependency build scripts. `false` = reviewed and denied;
 # these packages ship prebuilt binaries, so their install scripts are not needed.
 allowBuilds:
+  esbuild: false
   sharp: false
   unrs-resolver: false
 

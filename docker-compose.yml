@@ -1,0 +1,27 @@
+# Local development database only — never used in production (docs/ARCHITECTURE.md §8).
+name: startupshq
+
+services:
+  db:
+    # PostgreSQL 17.11, pinned by digest; Dependabot proposes updates.
+    image: postgres:17-alpine@sha256:18cfe3ef5e6815560c98237d6216d1e5119702fb0f3894c8785dd58b8bbe5d73
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: startupshq
+      # Local-only credential for a loopback-bound container; not a secret.
+      POSTGRES_PASSWORD: startupshq_local
+      POSTGRES_DB: startupshq
+    ports:
+      # Loopback only: the dev database is never reachable from the network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U startupshq -d startupshq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:

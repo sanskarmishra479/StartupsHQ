@@ -37,21 +37,21 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 - [x] `git init`, `.gitignore`, docs committed and pushed to the public repo `sanskarmishra479/StartupsHQ`
 - [x] pnpm 12.4.1 installed via corepack
-- [ ] **Docker Compose v2 (you):** `sudo apt install -y docker-compose-v2` — the daemon works but the `docker compose` plugin is missing
-- [ ] `pnpm create next-app@latest` — **Next.js 16**, App Router, TypeScript, Tailwind v4, `src/`, Biome
-- [ ] `next.config.ts`: `cacheComponents: true`; `images.unoptimized: true` (ADR-012); headers stub
-- [ ] `tsconfig.json`: `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, alias `@/*`
-- [ ] `pnpm add server-only`
-- [ ] **Supply chain (SEC-13):** `"packageManager": "pnpm@12.4.1"`; `pnpm-workspace.yaml` with `strictDepBuilds: true`, `allowBuilds: { sharp: true }`, `dangerouslyAllowAllBuilds: false`, `minimumReleaseAge: 4320`; CI installs with `--frozen-lockfile`; `audit-exceptions.json` with owner + expiry per entry
-- [ ] `docker-compose.yml`: Postgres 17, named volume, healthcheck
-- [ ] Local two-origin dev: `localhost:3000` (public) and `admin.localhost:3000` (admin)
-- [ ] `.env.example` with every Vercel variable from SRS §9 — no real values; GitHub-only secrets documented separately
-- [ ] `src/server/db/client.ts` — the **only** module reading `DATABASE_URL`
-- [ ] `drizzle.config.ts` (migrations use `MIGRATION_DATABASE_URL`, local/CI only)
+- [x] Docker Compose v2 installed (2.40.3)
+- [x] `create-next-app` — **Next.js 16**, App Router, TypeScript, Tailwind v4, `src/`, Biome; `next` pinned to 16.3.4 (16.3.5 was under the release-age window with no security fixes)
+- [x] `next.config.ts`: `cacheComponents: true`; `images.unoptimized: true` (ADR-012); `poweredByHeader: false`; baseline headers (nosniff, referrer policy, frame DENY, permissions policy)
+- [x] `tsconfig.json`: ES2022, `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, alias `@/*`
+- [x] `server-only` installed; Node tooling (drizzle-kit, later Vitest and scripts) runs with `--conditions=react-server` so the guard stays on every server file
+- [~] **Supply chain (SEC-13):** done — `"packageManager": "pnpm@12.4.1"`; `pnpm-workspace.yaml` with `strictDepBuilds: true`, `dangerouslyAllowAllBuilds: false`, `minimumReleaseAge: 4320`, and every dependency build script reviewed in `allowBuilds` (`esbuild`, `sharp`, `unrs-resolver` denied — prebuilt binaries). Pending — CI `--frozen-lockfile`; `audit-exceptions.json`
+- [x] `docker-compose.yml`: Postgres 17.11 pinned by digest, bound to 127.0.0.1 only, named volume, healthcheck, `startupshq_test` created on init
+- [x] Local two-origin dev: `localhost` and `admin.localhost` both resolve (host routing itself is Phase 6)
+- [x] `.env.example` with every variable from SRS §9 — no real values; copied to gitignored `.env.local` (mode 600)
+- [x] `src/server/db/client.ts` — the **only** module reading `DATABASE_URL`; lazy pool, so builds never connect
+- [x] `drizzle.config.ts` (migrations use `MIGRATION_DATABASE_URL`, local/CI only); generated `drizzle/` excluded from Biome
 - [ ] Vitest (node env, per-suite truncate + reseed) · Playwright config
 - [ ] `scripts/check-bundle-leak.ts` — scans `.next` client chunks for the **values** of server secrets (from CI env) and `postgres(ql)?://` **(SEC-01)**
 - [ ] Sentry SDK installed with PII scrubbing (DSN empty until Phase 22)
-- [ ] Directory skeleton per SRS §3.2
+- [x] Directory skeleton per SRS §3.2
 - [ ] Scripts: `dev build start lint typecheck test test:e2e test:cov db:generate db:migrate db:studio db:seed seed:admin check:leak recompute:derived`
 - [ ] `.github/workflows/ci.yml`: install → lint → typecheck → unit → integration (Postgres 17 service) → build → `check:leak` → audit
 - [ ] `.github/workflows/migrate.yml` skeleton (runs on `main`, `production` protected environment, required reviewer) **(ADR-015)**

@@ -31,7 +31,7 @@ This document is the authority on **requirements**: schema, authorization semant
 | Package manager | pnpm 12 (12.4.1 via corepack, pinned in `packageManager`) | Lockfile committed; hardened per SEC-13 |
 | Framework | **Next.js 16**, App Router, React 19.2 | Cache Components (`'use cache'`), `proxy.ts` (not `middleware.ts`), Turbopack |
 | Language | TypeScript 5, `strict: true` | `noUncheckedIndexedAccess` on |
-| DB | PostgreSQL 17 — Docker local, Neon prod | Extensions: `pg_trgm`, `unaccent` (via an IMMUTABLE wrapper, DM-13) |
+| DB | PostgreSQL 17 — Docker local (17.11, digest-pinned, loopback-only), Neon prod | Driver: `pg` (node-postgres) everywhere, via `drizzle-orm/node-postgres`. Extensions: `pg_trgm`, `unaccent` (via an IMMUTABLE wrapper, DM-13) |
 | ORM | Drizzle ORM + drizzle-kit | Migrations committed as SQL |
 | Auth | Better Auth | Email + password, **mandatory TOTP 2FA**, role column |
 | Email | Transactional provider (Resend or Postmark) | Invites, password reset, 2FA recovery |
@@ -359,7 +359,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 
 | ID | Requirement | Verified by |
 |---|---|---|
-| SEC-01 | No DB access or secret reachable from client code: `server-only` on every `src/server/**` file; `DATABASE_URL` read only in `src/server/db/client.ts`; no `NEXT_PUBLIC_` secret. | `check-bundle-leak.ts` scans client chunks for the **values** of server secrets (injected in CI) and for connection-string patterns (`postgres(ql)?://`) |
+| SEC-01 | No DB access or secret reachable from client code: `server-only` on every `src/server/**` file; `DATABASE_URL` read only in `src/server/db/client.ts`; no `NEXT_PUBLIC_` secret. Node tooling that loads server modules outside Next.js (drizzle-kit, Vitest, scripts) runs with the `react-server` export condition, so the guard is never removed to make tooling work. | `check-bundle-leak.ts` scans client chunks for the **values** of server secrets (injected in CI) and for connection-string patterns (`postgres(ql)?://`) |
 | SEC-02 | All input Zod-validated at the API boundary, re-validated server-side; unknown body fields rejected. All queries parameterized via Drizzle. | Contract tests |
 | SEC-03 | Data-layer authorization per §5, including cache-safe public reads (SEC-03.6, SEC-03.7). | Authz conformance suite |
 | SEC-04 | **Sessions & CSRF.** Session cookie is host-only on the admin origin (no `Domain` attribute), httpOnly, `Secure`, `SameSite=Lax`, `__Host-` prefix *if Better Auth supports it* — otherwise `__Secure-` with host-only scope, which gives equivalent subdomain isolation (decided in Phase 6). Rotation on privilege change; server-side revocation. **Mandatory TOTP 2FA** for all users. **CSRF:** the shared handler wrapper rejects every non-GET request whose `Origin` is not the admin origin (fallback: `Sec-Fetch-Site: same-origin`), and JSON routes require `Content-Type: application/json`. Better Auth's own origin checks cover its auth routes only. | e2e + contract tests |
@@ -371,7 +371,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 | SEC-10 | **DB roles.** `app_rw`: DML on content tables, INSERT-only on `audit_log`, no DDL. `migrator`: DDL, used **only** by the GitHub Actions migration workflow in a protected environment — never present in Vercel. `retention`: UPDATE/DELETE on `audit_log` only. `backup_ro`: read-only. TLS via the Neon pooler. | Test: DDL as `app_rw` → permission denied |
 | SEC-11 | **Audit.** Append-only for the app; personal-data fields recorded by name only; `ip` nulled after 90 days; rows deleted after 12 months by the `retention` job. | Unit + retention job test |
 | SEC-12 | Error responses never leak stack traces, SQL, table names or internal ids. Server logs and Sentry carry detail, with PII scrubbing. | Unit tests |
-| SEC-13 | **Supply chain.** `pnpm install --frozen-lockfile` in CI. In `pnpm-workspace.yaml`: `strictDepBuilds: true` (pnpm default — install fails on unreviewed dependency build scripts) with an explicit `allowBuilds` allowlist (e.g. `sharp: true`; `onlyBuiltDependencies` is deprecated since pnpm 11); `dangerouslyAllowAllBuilds: false`; `minimumReleaseAge: 4320` (minutes = 3 days; pnpm's default is 1440) with `minimumReleaseAgeExclude` only for audited exceptions. Dependabot security updates on; `pnpm audit` gate fails on high severity **except** listed advisories with an owner and expiry date. | CI + config review |
+| SEC-13 | **Supply chain.** `pnpm install --frozen-lockfile` in CI. In `pnpm-workspace.yaml`: `strictDepBuilds: true` (pnpm default — install fails on unreviewed dependency build scripts) with every dependency build script explicitly reviewed in `allowBuilds` (currently `esbuild`, `sharp` and `unrs-resolver`, all denied because they ship prebuilt binaries; `onlyBuiltDependencies` is deprecated since pnpm 11); `dangerouslyAllowAllBuilds: false`; `minimumReleaseAge: 4320` (minutes = 3 days; pnpm's default is 1440) with `minimumReleaseAgeExclude` only for audited exceptions. Dependabot security updates on; `pnpm audit` gate fails on high severity **except** listed advisories with an owner and expiry date. | CI + config review |
 | SEC-14 | **Client IP** is taken only from the platform's trusted source (`ipAddress()` from `@vercel/functions`), in one helper. `X-Forwarded-For` supplied by clients is never trusted. | Unit test |
 | SEC-15 | **Anti-scraping.** Signed cursors; max 20-page depth for anonymous pagination; `limit` ≤ 48; public DTOs contain only fields the UI renders; WAF bot challenge (SEC-08); `robots.txt` disallows `/api/`; a private list of watermark phrasings in a few published descriptions (factually correct wording — never fake records, per PRD principle 5) to detect bulk copies. | Contract tests + review |
 | SEC-16 | **Deploy isolation.** Preview deployments use a Neon branch created from a **seed-data branch**, never from production; Vercel Authentication is enabled on previews; production secrets are scoped to the Production environment only. Migrations never run in the Vercel build step (ADR-015). | Deployment checklist |
@@ -404,6 +404,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 | Variable | Purpose | Scope |
 |---|---|---|
 | `DATABASE_URL` | Postgres, `app_rw` role (DML only) | Production · Preview (preview branch) · local |
+| `TEST_DATABASE_URL` | Vitest integration database | local · CI only (not Vercel) |
 | `BETTER_AUTH_SECRET` | session signing | per environment |
 | `BETTER_AUTH_URL` | = admin origin | per environment |
 | `NEXT_PUBLIC_SITE_URL` | public origin (non-secret) | all |
