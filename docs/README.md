@@ -63,6 +63,7 @@ Each ADR carries a **Revisit if** line naming the condition that should reopen i
 | 2026-09-14 | Repository made public: ADR-021 and SEC-20 (public-repo hygiene). pnpm 12 supply-chain settings confirmed from pnpm docs (`strictDepBuilds`, `allowBuilds`, `minimumReleaseAge: 4320`), resolving the Phase 0 `[?]` |
 | 2026-09-14 | Phase 3 as built: slug/money are client-safe in `src/lib`; FR-403 names without Latin characters need a manual slug; FR-406 rate window is ≤ 7 days, never later; authz harness path in TEST_PLAN §7; `attachDatabasePool` added to Phase 22 |
 | 2026-09-14 | Phase 4a: API §6.1 `q` on `/startups` is a filter, not a ranking (ranking would break keyset pagination; `/search` ranks). Drizzle `relations.ts` dropped from TODO Phase 4: explicit joins keep a visibility predicate on every hop |
+| 2026-09-14 | Phase 4c: API §6.10a `GET /categories` directory added; §6.10 documents category slugs (hyphenated enums, country-level location rows) and that acquired companies count |
 | 2026-09-14 | Decisions: direct pushes to `main` with required CI (fix red runs immediately); no license — all rights reserved |
 | 2026-09-14 | Phase 0 complete. Dependabot cannot update pnpm 12 lockfiles: npm removed from Dependabot, weekly full-lockfile audit added; npm version updates by monthly manual review |
 | 2026-09-14 | Phase 1 complete: 23-table schema, NOLOGIN group roles with append-only audit privileges, constraint and privilege tests. A drizzle-kit bug (CHECK SQL truncated at `;`) was found in review and is now guarded by a test |

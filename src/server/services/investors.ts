@@ -1,11 +1,12 @@
 import "server-only";
 
-import { and, eq, exists, type SQL, sql } from "drizzle-orm";
+import { and, eq, exists, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { isSlug } from "../../lib/slug";
 import type { ReadContext } from "../auth/context";
 import { visibilityFilter, visibleSql } from "../auth/visibility";
 import { getDb } from "../db/client";
+import { portfolioStartupIds } from "../db/queries/portfolio";
 import {
   ROUND_FEED_ORDER,
   roundsAfter,
@@ -51,21 +52,8 @@ export type RoundsLedInput = Readonly<{ cursor?: string; limit?: number }>;
 
 const logo = alias(mediaAssets, "investor_logo");
 
-/**
- * Ids of the visible startups an investor backs, correlated on the outer `investors` row. Backing
- * through a hidden round is itself hidden (ADR-005).
- */
-function portfolioStartupIds(ctx: ReadContext): SQL {
-  return sql`select ${investments.startupId}
-    from ${investments}
-    inner join ${startups} on ${startups.id} = ${investments.startupId} and ${visibleSql(ctx, startups.status)}
-    left join ${fundingRounds} on ${fundingRounds.id} = ${investments.roundId}
-    where ${investments.investorId} = ${investors.id}
-      and (${investments.roundId} is null or ${visibleSql(ctx, fundingRounds.status)})`;
-}
-
 function investorColumns(ctx: ReadContext) {
-  const portfolio = portfolioStartupIds(ctx);
+  const portfolio = portfolioStartupIds(ctx, investors.id);
   return {
     id: investors.id,
     slug: investors.slug,

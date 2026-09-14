@@ -142,9 +142,9 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 - [x] `services/startups.ts` — `getBySlug` (incl. redirect lookup), `list(ctx, filters, sort, cursor)`, `listSimilar` · shared card query in `db/queries/startup-cards.ts` applies visibility at every join
 - [x] `services/founders.ts`, `services/investors.ts` (`getPortfolio`, `getRoundsLed`; the breakdown is computed inside `getBySlug`, so no separate `getBreakdown`), `services/batches.ts` (`getStats`), `services/rounds.ts` (`listRecent`, `listForStartup`) · shared `db/queries/{rounds,slugs,sql}.ts` and `lib/keyset.ts`
-- [ ] `services/taxonomy.ts` — `getPage` returns NotFound for nonexistent values; `isGenerated`; `isIndexable` (< 5 ⇒ false) **(FR-108)**
-- [ ] `services/search.ts` — ranked FTS (`simple` + unaccent), trigram fallback, `suggest` ≤ 8; **not cached**
-- [ ] `services/stats.ts`
+- [x] `services/taxonomy.ts` — `getPage` returns NotFound for nonexistent values; `isGenerated`; `isIndexable` (< 5 ⇒ false) **(FR-108)** · `listCategories` for the `/categories` directory **(FR-107)**; counts include acquired companies; a country page needs a country-level `locations` row
+- [x] `services/search.ts` — ranked FTS (`simple` + unaccent), trigram fallback, `suggest` ≤ 8; **not cached** · trigram uses word similarity (`%>`, threshold 0.6); suggest ranks name prefix > word prefix > fuzzy in one round-trip
+- [x] `services/stats.ts` — `getCounts`: visible counts per entity (public totals; admin dashboard FR-202) · enum labels and enum ⟷ slug mapping in client-safe `src/lib/labels.ts`
 - [ ] `src/server/dto/*` — minimal public DTOs; `Image` with variants **(SEC-15)**
 - [ ] **`src/server/cache/*`** — `'use cache'` + `cacheTag` wrappers accepting only `PUBLIC_READ`, with runtime guard **(SEC-03.6, NFR-02)**
 - [x] Keyset pagination per sort using DM-13 indexes — `recent` / `raised` / `name`, stable under mid-pagination inserts

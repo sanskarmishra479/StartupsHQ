@@ -247,7 +247,26 @@ const SORTS: Record<StartupSort, SortSpec> = {
   },
 };
 
-// ── List ─────────────────────────────────────────────────────────────────────────────────────
+// ── Count & list ─────────────────────────────────────────────────────────────────────────────
+
+/** How many startups visible to `ctx` match the filters; used for category pages (FR-108). */
+export async function count(
+  ctx: ReadContext,
+  filters: StartupFilters = {},
+): Promise<number> {
+  const db = getDb();
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(startups)
+    .leftJoin(locations, eq(locations.id, startups.locationId))
+    .where(
+      and(
+        visibilityFilter(ctx, startups.status),
+        ...filterConditions(db, ctx, filters),
+      ),
+    );
+  return row?.n ?? 0;
+}
 
 /** The explore grid: faceted, sorted, keyset-paginated startup cards (FR-101). */
 export async function list(

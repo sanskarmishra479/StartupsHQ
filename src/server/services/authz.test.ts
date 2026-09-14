@@ -12,7 +12,10 @@ import * as batches from "./batches";
 import * as founders from "./founders";
 import * as investors from "./investors";
 import * as rounds from "./rounds";
+import * as search from "./search";
 import * as startups from "./startups";
+import * as stats from "./stats";
+import * as taxonomy from "./taxonomy";
 
 // The authz conformance suite (docs/TEST_PLAN.md §7, SEC-03, NFR-10).
 //
@@ -117,6 +120,43 @@ const REGISTRY: AuthzRegistry = {
     kind: "read",
     invoke: async (ctx) => (await rounds.listRecent(ctx, { limit: 48 })).data,
     seesDraft: includesHiddenRound,
+  },
+  "services/startups.ts#count": {
+    kind: "read",
+    invoke: (ctx) => startups.count(ctx, { includeAcquired: true }),
+    // 17 startups are published; the draft and archived ones make 19.
+    seesDraft: (result) => (result as number) > 17,
+  },
+  "services/taxonomy.ts#getPage": {
+    kind: "read",
+    // Quantum Computing's only company is a draft.
+    invoke: (ctx) => orNull(taxonomy.getPage(ctx, "industries", "quantum")),
+    seesDraft: found,
+  },
+  "services/taxonomy.ts#listCategories": {
+    kind: "read",
+    invoke: (ctx) => taxonomy.listCategories(ctx),
+    seesDraft: (result) =>
+      (result as { entries: { slug: string }[] }[]).some((group) =>
+        group.entries.some((entry) => entry.slug === "quantum"),
+      ),
+  },
+  "services/search.ts#search": {
+    kind: "read",
+    invoke: (ctx) => search.search(ctx, { q: "stealth" }),
+    seesDraft: (result) =>
+      (result as { data: { startups: { total: number } } }).data.startups
+        .total > 0,
+  },
+  "services/search.ts#suggest": {
+    kind: "read",
+    invoke: (ctx) => search.suggest(ctx, "sunset"),
+    seesDraft: (result) => (result as unknown[]).length > 0,
+  },
+  "services/stats.ts#getCounts": {
+    kind: "read",
+    invoke: (ctx) => stats.getCounts(ctx),
+    seesDraft: (result) => (result as { startups: number }).startups > 17,
   },
   "services/rounds.ts#listForStartup": {
     kind: "read",

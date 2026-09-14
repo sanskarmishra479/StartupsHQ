@@ -140,9 +140,20 @@ Returns `Batch` with stats and first cohort page.
 
 `cursor`, `limit` (1–48), `round_type`, `investor`, `industry`, `from`, `to`. Ordered `announcedOn DESC, id`. Returns `NewsItem[]`.
 
+## 6.10a `GET /categories` *(FR-107)*
+
+Every facet value with ≥ 1 published company, grouped by kind in the order `industries`, `stages`, `work-type`, `cities`, `countries`:
+
+```json
+{ "data": [ { "kind": "industries",
+              "entries": [ { "slug": "ai", "name": "AI", "companyCount": 312, "isIndexable": true } ] } ] }
+```
+
+Entries within a kind are ordered by name, except stages and work types, which keep their enum order. Counts include acquired companies and match the category page's `companyCount`.
+
 ## 6.10 `GET /categories/{kind}/{slug}` *(FR-108)*
 
-`kind` ∈ `industries` | `stages` | `work-type` | `cities` | `countries`.
+`kind` ∈ `industries` | `stages` | `work-type` | `cities` | `countries`. Slugs: industry slug; stage and work-type enum values with `-` for `_` (`series-a`, `pre-seed`, `onsite`); a city location slug; a **country-level** location slug (a `locations` row with no city, e.g. `india`). Counts and the company list include acquired companies.
 
 - **`404` unless the facet value exists and has ≥ 1 published company.** `/categories/industries/anything-at-all` is a 404.
 - A real value with no `taxonomy_pages` row returns generated copy with `isGenerated: true`.
