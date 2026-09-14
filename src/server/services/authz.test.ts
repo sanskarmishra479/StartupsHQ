@@ -1,5 +1,12 @@
 import { join } from "node:path";
 import { afterAll, beforeAll } from "vitest";
+import * as cachedBatches from "../cache/batches";
+import * as cachedCategories from "../cache/categories";
+import * as cachedFounders from "../cache/founders";
+import * as cachedInvestors from "../cache/investors";
+import * as cachedRounds from "../cache/rounds";
+import * as cachedStartups from "../cache/startups";
+import * as cachedStats from "../cache/stats";
 import { closeDb, getDb } from "../db/client";
 import { seed } from "../db/seed";
 import { NotFoundError } from "../lib/errors";
@@ -42,6 +49,10 @@ const orNull = async <T>(read: Promise<T>): Promise<T | null> => {
 };
 
 const found = (result: unknown) => result !== null;
+
+/** Cached reads return `{ kind: "not-found" }` instead of throwing. */
+const isFoundValue = (result: unknown) =>
+  (result as { kind?: string }).kind !== "not-found";
 
 const HIDDEN_STARTUPS = new Set(["stealth-draft-co", "sunset-legacy"]);
 const includesHiddenStartup = (cards: unknown) =>
@@ -156,6 +167,63 @@ const REGISTRY: AuthzRegistry = {
   "services/stats.ts#getCounts": {
     kind: "read",
     invoke: (ctx) => stats.getCounts(ctx),
+    seesDraft: (result) => (result as { startups: number }).startups > 17,
+  },
+  // ── Cached public reads: PUBLIC_READ only, and never a draft in the shared cache ──────────
+  "cache/startups.ts#getStartupPage": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedStartups.getStartupPage(ctx, "stealth-draft-co"),
+    seesDraft: isFoundValue,
+  },
+  "cache/startups.ts#getSimilarStartups": {
+    kind: "cached-read",
+    invoke: (ctx) =>
+      cachedStartups.getSimilarStartups(ctx, "cafe-algorithmique"),
+    seesDraft: includesHiddenStartup,
+  },
+  "cache/startups.ts#getStartupsFirstPage": {
+    kind: "cached-read",
+    invoke: async (ctx) =>
+      (await cachedStartups.getStartupsFirstPage(ctx, "name")).data,
+    seesDraft: includesHiddenStartup,
+  },
+  "cache/founders.ts#getFounderPage": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedFounders.getFounderPage(ctx, "unverified-founder"),
+    seesDraft: isFoundValue,
+  },
+  "cache/investors.ts#getInvestorPage": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedInvestors.getInvestorPage(ctx, "quietwater-capital"),
+    seesDraft: isFoundValue,
+  },
+  "cache/batches.ts#getBatchPage": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedBatches.getBatchPage(ctx, "parallel-w26"),
+    seesDraft: isFoundValue,
+  },
+  "cache/rounds.ts#getNewsFirstPage": {
+    kind: "cached-read",
+    invoke: async (ctx) => (await cachedRounds.getNewsFirstPage(ctx)).data,
+    seesDraft: includesHiddenRound,
+  },
+  "cache/categories.ts#getCategoryPage": {
+    kind: "cached-read",
+    invoke: (ctx) =>
+      cachedCategories.getCategoryPage(ctx, "industries", "quantum"),
+    seesDraft: isFoundValue,
+  },
+  "cache/categories.ts#getCategoryDirectory": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedCategories.getCategoryDirectory(ctx),
+    seesDraft: (result) =>
+      (result as { entries: { slug: string }[] }[]).some((group) =>
+        group.entries.some((entry) => entry.slug === "quantum"),
+      ),
+  },
+  "cache/stats.ts#getDirectoryCounts": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedStats.getDirectoryCounts(ctx),
     seesDraft: (result) => (result as { startups: number }).startups > 17,
   },
   "services/rounds.ts#listForStartup": {

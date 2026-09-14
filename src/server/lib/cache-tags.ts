@@ -22,5 +22,6 @@ export const cacheTags = {
   startupsList: () => tag("startups:list"),
   news: () => tag("news"),
   categories: () => tag("categories"),
+  stats: () => tag("stats"),
   sitemap: () => tag("sitemap"),
 } as const;

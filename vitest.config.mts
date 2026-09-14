@@ -12,6 +12,9 @@ export default defineConfig({
       // module Next.js uses under the react-server condition, so every server file
       // keeps its guard (SEC-01).
       "server-only": fromRoot("./node_modules/server-only/empty.js"),
+      // Outside a Next.js render, `cacheTag` and `cacheLife` throw. This double records the
+      // tags, lifetimes and revalidations instead, so tests can assert them.
+      "next/cache": fromRoot("./src/server/testing/next-cache.ts"),
     },
   },
   test: {

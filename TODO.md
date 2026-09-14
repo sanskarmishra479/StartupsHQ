@@ -145,12 +145,12 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] `services/taxonomy.ts` — `getPage` returns NotFound for nonexistent values; `isGenerated`; `isIndexable` (< 5 ⇒ false) **(FR-108)** · `listCategories` for the `/categories` directory **(FR-107)**; counts include acquired companies; a country page needs a country-level `locations` row
 - [x] `services/search.ts` — ranked FTS (`simple` + unaccent), trigram fallback, `suggest` ≤ 8; **not cached** · trigram uses word similarity (`%>`, threshold 0.6); suggest ranks name prefix > word prefix > fuzzy in one round-trip
 - [x] `services/stats.ts` — `getCounts`: visible counts per entity (public totals; admin dashboard FR-202) · enum labels and enum ⟷ slug mapping in client-safe `src/lib/labels.ts`
-- [ ] `src/server/dto/*` — minimal public DTOs; `Image` with variants **(SEC-15)**
-- [ ] **`src/server/cache/*`** — `'use cache'` + `cacheTag` wrappers accepting only `PUBLIC_READ`, with runtime guard **(SEC-03.6, NFR-02)**
+- [x] `src/server/dto/*` — minimal public DTOs; `Image` with variants **(SEC-15)**
+- [x] **`src/server/cache/*`** — `'use cache'` + `cacheTag` wrappers accepting only `PUBLIC_READ`, with runtime guard **(SEC-03.6, NFR-02)** · exported guard + private cached scope keyed by public arguments only; absence returned as `{ kind: "not-found" }` because thrown errors become digests across the cache boundary; malformed input never reaches the cache; explicit `cacheLife` everywhere
 - [x] Keyset pagination per sort using DM-13 indexes — `recent` / `raised` / `name`, stable under mid-pagination inserts
 - [x] ~~`src/server/db/relations.ts`~~ — **not used (decided 2026-09-14):** Drizzle's relational queries cannot apply a status predicate on one-to-one hops (acquirer, a round's investor), so a draft could leak through them. Reads use explicit joins, each passing through `visibilityFilter` / `visibleSql` (SEC-03.2)
-- [ ] Integration tests per TEST_PLAN §6 (reads), incl. pagination stability for each sort and "two visitors share one cache entry"
-- [ ] Assert ≤ 3 round-trips for the company page on a miss **(NFR-01)**
+- [x] Integration tests per TEST_PLAN §6 (reads), incl. pagination stability for each sort · "two visitors share one cache entry" is covered structurally here (frozen identity-free `PUBLIC_READ`; static scan: no cached scope takes a context or reads request data); the real one-query-for-two-visitors check needs a production build and moves to Phase 22
+- [x] Assert ≤ 3 round-trips for the company page on a miss **(NFR-01)** — also founder pages
 
 **EXIT:** every read tested · no draft/archived leak via services or cache · coverage ≥ 80%.
 
@@ -383,6 +383,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 - [ ] **Accounts & plans (you):** Vercel **Pro** with spend management; Neon **Launch**; Upstash; Cloudflare R2 bucket with 30-day lifecycle; email provider; Sentry
 - [ ] Call `attachDatabasePool(pool)` from `@vercel/functions` in `db/client.ts` so Fluid compute drains idle Neon connections before a function suspends
+- [ ] **Verify cache persistence on Vercel (NFR-02, ADR-013):** Next.js documents that the default in-memory `'use cache'` store usually does not persist across serverless instances. Against a preview deploy, request one company page from two clients and count DB queries. If entries are not shared, decide between relying on prerendered/ISR page output and `'use cache: remote'` (platform cache, extra cost) — a decision for the owner, with numbers
 - [ ] **Budget alerts** at 50 / 80 / 100% on Vercel, Neon, Upstash
 - [ ] DNS: public domain + `admin.` subdomain; TLS on both
 - [ ] Vercel env vars per SRS §9, **production secrets scoped to Production only**; migrator credential **not** in Vercel

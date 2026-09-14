@@ -194,7 +194,7 @@ For every endpoint in [API.md](./API.md): success shape, status, envelope and ea
 | Requirement | Method | Target |
 |---|---|---|
 | NFR-01 | Lighthouse on preview; query-count assertion | LCP ≤ 2.0 s p75; cached TTFB ≤ 400 ms; suggest p95 ≤ 150 ms; ≤ 3 round-trips per miss |
-| NFR-02 | Integration: two sequential public reads from different simulated visitors hit the same cache entry; write then read is fresh | one DB execution for both reads; no stale read after write |
+| NFR-02 | **Vitest** (`src/server/cache/cache.test.ts`, with `next/cache` replaced by a recording double): every cached read sets explicit tags and `cacheLife`, returns plain JSON, rejects malformed input before the cache; static scan proves no cached scope takes a context or reads request data. **Production build** (Phase 22 preview): two sequential reads from different clients; write then read | tags and lifetimes as specified; one DB execution for both reads; no stale read after write |
 | NFR-03 | Rich-results test; sitemap diff after publish; thin facet check | valid JSON-LD; new entity in sitemap; thin facets `noindex` and absent from sitemap |
 | NFR-04 | axe in CI; manual keyboard + screen reader pass | zero violations; initials avatars labelled |
 | NFR-05/06 | `responsive.spec.ts`; manual theme pass | no horizontal scroll; both themes legible |
