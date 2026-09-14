@@ -1,6 +1,6 @@
 import "server-only";
 
-import { eq, type SQL } from "drizzle-orm";
+import { eq, type SQL, sql } from "drizzle-orm";
 import type { PgColumn } from "drizzle-orm/pg-core";
 import { isAuthedContext, type ReadContext } from "./context";
 
@@ -16,4 +16,9 @@ export function visibilityFilter(
   status: PgColumn,
 ): SQL | undefined {
   return isAuthedContext(ctx) ? undefined : eq(status, "published");
+}
+
+/** visibilityFilter as a boolean expression, for joins and subqueries written in raw SQL. */
+export function visibleSql(ctx: ReadContext, status: PgColumn): SQL {
+  return visibilityFilter(ctx, status) ?? sql`true`;
 }

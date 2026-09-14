@@ -140,15 +140,15 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 4 · Service layer — reads
 
-- [ ] `services/startups.ts` — `getBySlug` (incl. redirect lookup), `list(ctx, filters, sort, cursor)`, `listSimilar`
+- [x] `services/startups.ts` — `getBySlug` (incl. redirect lookup), `list(ctx, filters, sort, cursor)`, `listSimilar` · shared card query in `db/queries/startup-cards.ts` applies visibility at every join
 - [ ] `services/founders.ts`, `services/investors.ts` (`getPortfolio`, `getRoundsLed`, `getBreakdown`), `services/batches.ts` (`getStats`), `services/rounds.ts` (`listRecent`, `listForStartup`)
 - [ ] `services/taxonomy.ts` — `getPage` returns NotFound for nonexistent values; `isGenerated`; `isIndexable` (< 5 ⇒ false) **(FR-108)**
 - [ ] `services/search.ts` — ranked FTS (`simple` + unaccent), trigram fallback, `suggest` ≤ 8; **not cached**
 - [ ] `services/stats.ts`
 - [ ] `src/server/dto/*` — minimal public DTOs; `Image` with variants **(SEC-15)**
 - [ ] **`src/server/cache/*`** — `'use cache'` + `cacheTag` wrappers accepting only `PUBLIC_READ`, with runtime guard **(SEC-03.6, NFR-02)**
-- [ ] Keyset pagination per sort using DM-13 indexes
-- [ ] `src/server/db/relations.ts` — Drizzle relations, written and tested alongside the queries that use them (moved from Phase 1)
+- [x] Keyset pagination per sort using DM-13 indexes — `recent` / `raised` / `name`, stable under mid-pagination inserts
+- [x] ~~`src/server/db/relations.ts`~~ — **not used (decided 2026-09-14):** Drizzle's relational queries cannot apply a status predicate on one-to-one hops (acquirer, a round's investor), so a draft could leak through them. Reads use explicit joins, each passing through `visibilityFilter` / `visibleSql` (SEC-03.2)
 - [ ] Integration tests per TEST_PLAN §6 (reads), incl. pagination stability for each sort and "two visitors share one cache entry"
 - [ ] Assert ≤ 3 round-trips for the company page on a miss **(NFR-01)**
 

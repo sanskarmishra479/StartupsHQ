@@ -17,7 +17,7 @@ import {
   type ReadContext,
 } from "./context";
 import { assertAdmin, assertEditor } from "./guards";
-import { visibilityFilter } from "./visibility";
+import { visibilityFilter, visibleSql } from "./visibility";
 
 // docs/SRS.md §5 (SEC-03), SEC-12.
 
@@ -134,6 +134,26 @@ describe("visibilityFilter", () => {
 
   it("does not restrict an authenticated editor", () => {
     expect(render(editor)).toBeUndefined();
+  });
+});
+
+describe("visibleSql", () => {
+  const render = (ctx: ReadContext) =>
+    dialect.sqlToQuery(visibleSql(ctx, startups.status));
+
+  it.each([
+    ["public", anonymous],
+    ["public-read", PUBLIC_READ],
+    ["forged admin", forgedAdmin],
+  ] as const)("is the published-only predicate for a %s context", (_label, ctx) => {
+    expect(render(ctx)).toMatchObject({
+      sql: '"startups"."status" = $1',
+      params: ["published"],
+    });
+  });
+
+  it("is a literal true for an authenticated editor", () => {
+    expect(render(editor)).toMatchObject({ sql: "true", params: [] });
   });
 });
 

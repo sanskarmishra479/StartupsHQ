@@ -100,7 +100,7 @@ Exact WAF thresholds are tuned after launch from real traffic. App-level `429`s 
 | `city` | location slug, repeatable | |
 | `country` | ISO-3166 alpha-2 | |
 | `batch` · `investor` · `founder` | slug | |
-| `q` | string, 2–100 | Full-text; name ranks over tagline over description |
+| `q` | string, 2–100 | Full-text **filter** over name, tagline and description; results keep the requested `sort`, so keyset pagination stays stable. Relevance-ranked results are `GET /search` |
 | `include_acquired` | boolean, default `false` | |
 | `sort` | `recent` (default) \| `raised` \| `name` | Each sort has its own keyset index (DM-13) |
 | `cursor` | opaque, signed | Must match `sort` |
