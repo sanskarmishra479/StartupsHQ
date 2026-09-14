@@ -109,6 +109,8 @@ startupsHQ/
     ├── server/                   ← 'server-only'. THE ONLY DB ACCESS.
     │   ├── db/
     │   │   ├── client.ts         the single module reading DATABASE_URL
+│   │   ├── derived.ts        derived startup totals, published rounds only (FR-404)
+│   │   ├── seed/             fictional fixtures + idempotent seed
     │   │   ├── schema/           startups founders investors batches rounds
     │   │   │                     taxonomy joins media redirects fx auth ops enums index
     │   │   └── relations.ts
@@ -350,7 +352,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 | FR-401 | **Prefill:** given a URL, return a draft object from OG tags, JSON-LD, `<title>`/meta and apple-touch-icon/favicon. **Every** fetch — page, `og:image`, icons, Firecrawl-returned URLs — goes through `safeFetch` (SEC-05). Fetched images are stored as `staging` media assets. All fields editable; never persisted as an entity, never published. Degrades to a partial result rather than failing. |
 | FR-402 | **CSV import:** dry-run mandatory. The dry-run stores normalized rows (`import_jobs.rows`) and the file's SHA-256; commit applies **those stored rows** (no re-upload), within 24 h. Commit **re-validates against current DB state inside the transaction** and aborts with a conflict if anything changed since the dry-run. Duplicate detection: exact slug, then trigram similarity > 0.85. `;`-separated founder/investor names resolve to existing records or become drafts. Max 1,000 rows. Values are stored raw. |
 | FR-403 | **Slugs:** generated from name (transliterated via `immutable_unaccent`, lowercase, hyphenated), uniqueness-checked with a numeric suffix. Editors cannot change a published slug; admins can (FR-409). |
-| FR-404 | **Derived fields:** `total_raised_usd`, `total_debt_usd`, `latest_round_id` recomputed inside the same transaction as any round insert/update/archive/delete. Grants and secondaries are shown in the timeline and excluded from totals. |
+| FR-404 | **Derived fields:** `total_raised_usd`, `total_debt_usd`, `latest_round_id` recomputed inside the same transaction as any round insert/update/archive/delete. Grants and secondaries are shown in the timeline and excluded from totals. Only **published** rounds count: totals are public, so a draft or archived round would leak its amount. Implemented once, in `src/server/db/derived.ts`. |
 | FR-405 | **Audit:** every mutation writes an `audit_log` row inside its transaction, with personal-data fields recorded by name only (DM-12). |
 | FR-406 | **FX conversion:** editors enter `currency` + `amount_original`; the server computes `amount_usd` from `fx_rates` using the rate on `announced_on` or the latest prior business day, and stores `fx_rate`, `fx_rate_date`, `fx_source = 'ecb'`. A currency ECB does not publish requires an admin-entered rate with `fx_source = 'manual'` and a source note. |
 | FR-407 | **Deletion is archiving.** DELETE on an entity sets `status = archived`, `archived_at`; publicly it 404s; it can be restored. Hard delete is admin-only and permitted only when `first_published_at is null`. |

@@ -47,7 +47,7 @@ Every push to `main` runs these gates. Commits go directly to `main` (admin bypa
 
 ## 4. Fixture catalog
 
-Each fixture has a named consumer; a fixture with no consumer should not exist.
+Each fixture has a named consumer; a fixture with no consumer should not exist. **All fixtures are fictional** (decided 2026-09-14) — no real company or person is committed to this public repository. Every entry below is asserted in `src/server/db/seed/seed.test.ts`.
 
 | Fixture | Consumed by |
 |---|---|

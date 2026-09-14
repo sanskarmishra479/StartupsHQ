@@ -64,6 +64,7 @@ Each ADR carries a **Revisit if** line naming the condition that should reopen i
 | 2026-09-14 | Decisions: direct pushes to `main` with required CI (fix red runs immediately); no license — all rights reserved |
 | 2026-09-14 | Phase 0 complete. Dependabot cannot update pnpm 12 lockfiles: npm removed from Dependabot, weekly full-lockfile audit added; npm version updates by monthly manual review |
 | 2026-09-14 | Phase 1 complete: 23-table schema, NOLOGIN group roles with append-only audit privileges, constraint and privilege tests. A drizzle-kit bug (CHECK SQL truncated at `;`) was found in review and is now guarded by a test |
+| 2026-09-14 | Seed data is fictional only (public repo). Derived totals count published rounds only, so unpublished amounts cannot leak. `seed-admin` moved to Phase 6 |
 
 ## Conventions
 

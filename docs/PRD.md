@@ -139,7 +139,7 @@ Every entity has `draft | published | archived`.
 
 | Risk | Mitigation |
 |---|---|
-| **Data entry is the real bottleneck** — a directory with 30 companies is not a product | Prefill + CSV import are v1 must-haves. Seed 300 before launch. |
+| **Data entry is the real bottleneck** — a directory with 30 companies is not a product | Prefill + CSV import are v1 must-haves. Load 300 companies through the admin panel and CSV import before launch — never through the code repository, which holds fictional test data only. |
 | Founder data is the differentiator *and* the hardest to source | Accept partial founder records; a name + one link + its source still creates a graph edge. |
 | **Founder data is personal data (GDPR and similar laws)** | Professional facts only; privacy notice and request process at launch; erasure path; audit log stores field names, not personal values; legal review before launch. |
 | Logo and photo rights | Logos used nominatively for identification; founder photos only when supplied by the founder or licensed — initials otherwise; takedown path in `/about`. |

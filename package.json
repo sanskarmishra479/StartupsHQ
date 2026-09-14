@@ -21,7 +21,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check:leak": "tsx scripts/check-bundle-leak.ts"
+    "check:leak": "tsx scripts/check-bundle-leak.ts",
+    "db:seed": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts",
+    "db:seed:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts --test"
   },
   "dependencies": {
     "better-auth": "^1.7.4",

@@ -99,19 +99,20 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 2 · Seed data
 
-**Goal:** fixtures exercising every edge case in TEST_PLAN §4.
+**Goal:** fixtures exercising every edge case in TEST_PLAN §4. **Fictional only** (decided 2026-09-14): no real company or person enters this public repository; real content reaches production through the admin panel and CSV import.
 
-- [ ] `scripts/seed.ts` — idempotent, transactional, `--test` flag
-- [ ] ~30 real companies, ~40 founders, ~25 investors, ~6 batches, ~50 rounds
-- [ ] **Global spread:** ≥ 8 countries, ≥ 4 continents, ≥ 3 non-US hubs, names with diacritics and non-Latin scripts
-- [ ] `fx_rates` sample rows covering the seeded non-USD rounds
-- [ ] Every fixture in TEST_PLAN §4, including: undisclosed; EUR with rate; unsupported currency; debt + grant + secondary on one startup; both acquisition shapes; two batches; founder with 3 startups and two stints at one; investor 5 rounds/2 led; NULL-round investment; empty founders/rounds; draft + archived per entity; previously-published archived; never-published draft; slug redirect; facets with 0 / 3 / ≥ 5 companies; stale staging media; old audit rows
-- [ ] **No founder photos** unless a licence/source is recorded (SEC-18) — initials otherwise
-- [ ] `taxonomy_pages` for all stages, work types, top industries
-- [ ] `scripts/seed-admin.ts` — first admin; 2FA enrollment forced on first login
-- [ ] Document creating the Neon **seed-data branch** from this seed (used by previews, SEC-16)
+- [x] `src/server/db/seed/` (fixtures + seed function) and `scripts/seed.ts` — idempotent, one transaction, `pnpm db:seed` / `pnpm db:seed:test`; refuses any non-local database unless `SEED_CONFIRM_DATABASE` names it
+- [x] 19 startups, 16 founders, 13 investors, 5 batches, 29 rounds — all fictional (example.com links, RFC 5737 IPs)
+- [x] **Global spread:** 12 countries on 6 continents; names with diacritics and a non-Latin script
+- [x] `fx_rates` sample rows (illustrative) for the EUR round, with a weekend gap for date-fallback tests; NGN uses a manual rate
+- [x] Every fixture in TEST_PLAN §4, each asserted in `seed.test.ts`, including: undisclosed; EUR with rate; unsupported currency; debt + grant + secondary on one startup; both acquisition shapes; two batches; founder with 3 startups and two stints at one; investor 5 rounds/2 led; NULL-round investment; empty founders/rounds; draft + archived per entity; previously-published archived; never-published draft; slug redirect; facets with 0 / 3 / ≥ 5 companies; stale staging media; old audit rows
+- [x] **No founder photos** (SEC-18) — initials avatars
+- [x] `taxonomy_pages` for top industries and stages; **none for work types**, so the generated-copy fallback is exercised
+- [x] ~~`scripts/seed-admin.ts`~~ **moved to Phase 6** — it needs Better Auth configured to hash passwords and enforce 2FA
+- [x] `src/server/db/derived.ts` — the one implementation of derived totals, counting **published** rounds only (an unpublished amount must never leak through a public total); used by the seed now and the rounds service in Phase 5
+- [ ] Neon **seed-data branch** for previews (SEC-16) — created in Phase 22 with `SEED_CONFIRM_DATABASE=<branch db> pnpm db:seed`
 
-**EXIT:** seeding twice yields identical state · every fixture queryable · totals match (equity + convertible only).
+**EXIT:** seeding twice yields identical state · every fixture queryable · totals match (published equity + convertible only).
 
 ---
 
@@ -188,6 +189,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] `requireEditor()` / `requireAdmin()` handler helpers (layer 2)
 - [ ] **`src/proxy.ts`** (not `middleware.ts`) — host routing: `/admin/*`, `/api/auth/*`, non-GET `/api/v1/*` only on the admin host; session gate for `/admin/*` (layer 1)
 - [ ] `/api/auth/[...all]` on the admin origin
+- [ ] `scripts/seed-admin.ts` — first admin from CLI args, password hashed by Better Auth, 2FA enrollment forced on first login (moved from Phase 2)
 - [ ] Tests: enrollment forced; recovery code single-use; login without 2FA cannot write; revoked session rejected; no lockout from another IP; editor refused admin-only action; admin paths 404 on public host
 
 **EXIT:** three independent layers verified **(SEC-03.5)** · `seed-admin.ts` → working login with 2FA · cookie-prefix spike recorded.

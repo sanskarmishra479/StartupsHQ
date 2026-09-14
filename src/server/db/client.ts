@@ -12,6 +12,9 @@ import * as schema from "./schema";
  */
 export type Database = NodePgDatabase<typeof schema>;
 
+/** The `tx` handle passed to `getDb().transaction(async (tx) => …)`. */
+export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
 type DbHandle = { pool: Pool; db: Database };
 
 // Reuse one pool per process, including across dev hot reloads.

@@ -18,6 +18,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts", "scripts/**/*.test.ts"],
     globalSetup: ["./vitest.global-setup.ts"],
+    // Suites share one test database and the seed suite truncates it, so files run one at a time.
+    fileParallelism: false,
     setupFiles: ["./vitest.setup.ts"],
   },
 });

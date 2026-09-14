@@ -193,12 +193,12 @@ Every column is indexed (DM-13). `investments` uniqueness uses `NULLS NOT DISTIN
 
 | Column | Derivation | Owner |
 |---|---|---|
-| `startups.total_raised_usd` | Σ `amount_usd` where `round_class` ∈ {equity, convertible} | rounds service, same transaction |
-| `startups.total_debt_usd` | Σ `amount_usd` where `round_class` = debt | rounds service |
-| `startups.latest_round_id` | latest equity/convertible round by `announced_on` | rounds service |
+| `startups.total_raised_usd` | Σ `amount_usd` of **published** rounds where `round_class` ∈ {equity, convertible} | rounds service via `src/server/db/derived.ts`, same transaction |
+| `startups.total_debt_usd` | Σ `amount_usd` of **published** rounds where `round_class` = debt | rounds service |
+| `startups.latest_round_id` | latest **published** equity/convertible round by `announced_on` | rounds service |
 | `funding_rounds.amount_usd` | `amount_original × fx_rate` for the rate on or before `announced_on` | rounds service via `fx_rates` |
 
-Grants and secondaries appear in the timeline but never in totals — a secondary sale moves existing shares and puts no new money into the company. Only the service owning a source table writes its derived columns; `scripts/recompute-derived.ts` repairs them safely at any time (ADR-009, ADR-018).
+Grants and secondaries appear in the timeline but never in totals — a secondary sale moves existing shares and puts no new money into the company. Draft and archived rounds never count either: totals are public, so including an unpublished round would leak its amount. Only the service owning a source table writes its derived columns; `scripts/recompute-derived.ts` repairs them safely at any time (ADR-009, ADR-018).
 
 ## 7. Error handling
 
