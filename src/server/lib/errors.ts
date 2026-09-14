@@ -104,6 +104,12 @@ export class UnprocessableError extends AppError {
   }
 }
 
+export class UnsupportedMediaTypeError extends AppError {
+  constructor(message = "Unsupported content type.") {
+    super("UNSUPPORTED_MEDIA_TYPE", 415, message);
+  }
+}
+
 export class RateLimitedError extends AppError {
   readonly retryAfterSeconds: number;
 
