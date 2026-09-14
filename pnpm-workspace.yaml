@@ -1,0 +1,14 @@
+# Supply-chain settings — SEC-13 in docs/SRS.md. Do not loosen without review.
+
+# Fail the install when any dependency has a build script nobody has reviewed.
+strictDepBuilds: true
+dangerouslyAllowAllBuilds: false
+
+# Reviewed dependency build scripts. `false` = reviewed and denied;
+# these packages ship prebuilt binaries, so their install scripts are not needed.
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
+
+# Refuse package versions published less than 3 days ago (value in minutes).
+minimumReleaseAge: 4320
