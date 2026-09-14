@@ -56,7 +56,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] `.github/workflows/ci.yml`: frozen install → lint → typecheck → tests (database started from `docker-compose.yml`, so CI and local share one Dependabot-maintained image) → build → `check:leak` → audit; read-only token, SHA-pinned GitHub-owned actions. First run green 2026-09-14
 - [x] `.github/workflows/migrate.yml` skeleton (main only, `production` environment) **(ADR-015)** — inert until the `ENABLE_PRODUCTION_MIGRATIONS` repo variable is set in Phase 22
 - [x] Dependabot config (`github-actions`, `docker-compose`; 3-day cooldown matching `minimumReleaseAge`; major PostgreSQL upgrades ignored). **`[?]` resolved — npm removed:** Dependabot found updates but failed to rewrite the pnpm 12 lockfile (`unknown_error` on all five), and the dependency graph lists only direct dependencies, so Dependabot alerts miss transitive packages. Covered instead by `.github/workflows/audit.yml` (weekly full-lockfile `pnpm audit`) plus the CI audit gate
-- [ ] **Decide (you): how npm dependencies get version updates** — Renovate (third-party app with current pnpm support), or a monthly manual `pnpm outdated` review. Security coverage does not depend on this choice
+- [x] **npm version updates — decided 2026-09-14: monthly manual review** (see *Recurring* below). No third-party app gets write access to the repository
 - [ ] **Public repo hardening (SEC-20, ADR-021):**
   - [x] secret scanning + push protection enabled (2026-09-14)
   - [x] Dependabot alerts + security updates enabled (2026-09-14)
@@ -410,6 +410,11 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] Post-launch: pages-per-session ≥ 3.5; monthly cost review
 
 ---
+
+## Recurring (from Phase 0 onward)
+
+- [ ] **Monthly — npm dependency review** (first due 2026-10-14): `pnpm outdated`; update in small commits that respect the 3-day release age; CI green after each; major versions one at a time with changelog review
+- [ ] **Weekly, automated — `audit.yml`**: full-lockfile `pnpm audit`; investigate any failure the same day
 
 ## Post-launch
 
