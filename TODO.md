@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 1 complete — Phase 2 (seed data) next · **Last updated:** 2026-09-14
+**Status:** Phase 3 complete — Phase 4 (service layer, reads) next · **Last updated:** 2026-09-14
 
 ---
 
@@ -120,21 +120,21 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Goal:** authorization, cache safety and outbound-request safety exist before the first service.
 
-- [ ] `auth/context.ts` — `Actor`, `RequestContext`, `PublicReadContext`, frozen `PUBLIC_READ`, `publicContext(ip)`, `authedContext(actor, ip)`; fail-closed **(SEC-03.4, SEC-03.6)**
-- [ ] `auth/guards.ts` — `assertEditor`, `assertAdmin` (type-narrowing, throw `ForbiddenError`) **(SEC-03.3)**
-- [ ] `auth/visibility.ts` — `visibilityFilter(ctx)`; public and public-read ⟹ published only **(SEC-03.2)**
-- [ ] `lib/errors.ts` — typed errors with safe client messages **(SEC-12)**
-- [ ] `lib/cache-tags.ts` — the only tag builder **(NFR-02)**
-- [ ] `lib/slug.ts` **(FR-403)** · `lib/money.ts` **(NFR-08)** · `lib/fx.ts` (rate lookup, prior business day, rounding) **(FR-406)**
-- [ ] `lib/cursor.ts` — HMAC-signed, sort-aware keyset cursor + depth counter **(SEC-15)**
-- [ ] `lib/ip.ts` — trusted client IP via `@vercel/functions` `ipAddress()`, local fallback **(SEC-14)**
-- [ ] `lib/origin.ts` — admin-origin / `Sec-Fetch-Site` check **(SEC-04)**
-- [ ] `lib/safe-fetch.ts` — undici agent with connect-time IP validation, manual re-validated redirects ≤ 3, 5 s, 5 MB **(SEC-05)**
-- [ ] **Authz conformance harness** (TEST_PLAN §7) incl. cached-read table and registry completeness; green on stubs
-- [ ] Type test: a `src/server/cache/**` function rejects `RequestContext` at compile time
-- [ ] Unit tests for every helper above, incl. the full SEC-05 IP-form list and a DNS-rebinding mock
+- [x] `auth/context.ts` — `Actor`, `RequestContext`, `PublicReadContext`, frozen `PUBLIC_READ`, `publicContext(ip)`, `authedContext(actor, ip)`; fail-closed, forged contexts rejected via a module-private brand **(SEC-03.4, SEC-03.6)**
+- [x] `auth/guards.ts` — `assertEditor`, `assertAdmin` (type-narrowing, throw `ForbiddenError`) **(SEC-03.3)**
+- [x] `auth/visibility.ts` — `visibilityFilter(ctx)`; public and public-read ⟹ published only **(SEC-03.2)**
+- [x] `lib/errors.ts` — typed errors with safe client messages **(SEC-12)**
+- [x] `lib/cache-tags.ts` — the only tag builder **(NFR-02)**
+- [x] `src/lib/slug.ts` **(FR-403)** · `src/lib/money.ts` **(NFR-08)** — client-safe, so they live outside `src/server` · `lib/fx.ts` (latest rate ≤ 7 days before, exact half-up rounding) **(FR-406)**
+- [x] `lib/cursor.ts` — HMAC-signed, sort-aware keyset cursor + depth counter **(SEC-15)**
+- [x] `lib/ip.ts` — trusted client IP (`x-real-ip` only on Vercel, which overwrites it), local fallback **(SEC-14)**
+- [x] `lib/origin.ts` — admin-origin / `Sec-Fetch-Site` check **(SEC-04)**
+- [x] `lib/safe-fetch.ts` — undici agent with connect-time IP validation, manual re-validated redirects ≤ 3, 5 s, 5 MB **(SEC-05)**
+- [x] **Authz conformance harness** (TEST_PLAN §7) incl. cached-read table and registry completeness; green on stubs — `src/server/testing/authz.ts`, suite at `src/server/services/authz.test.ts`, proven against a deliberately broken fixture service
+- [x] Type test: a `src/server/cache/**` function rejects `RequestContext` at compile time
+- [x] Unit tests for every helper above, incl. the full SEC-05 IP-form list and a DNS-rebinding mock
 
-**EXIT:** authz suite green · every SEC-05 unit case rejected with no private socket opened · spoofed `X-Forwarded-For` ignored · tampered and sort-mismatched cursors rejected.
+**EXIT:** ✅ authz suite green · every SEC-05 unit case rejected with no private socket opened · spoofed `X-Forwarded-For` ignored · tampered and sort-mismatched cursors rejected.
 
 ---
 
@@ -382,6 +382,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 ## Phase 22 · Production operations & deploy  *(NFR-11, NFR-12, SEC-08, SEC-16, SEC-17)*
 
 - [ ] **Accounts & plans (you):** Vercel **Pro** with spend management; Neon **Launch**; Upstash; Cloudflare R2 bucket with 30-day lifecycle; email provider; Sentry
+- [ ] Call `attachDatabasePool(pool)` from `@vercel/functions` in `db/client.ts` so Fluid compute drains idle Neon connections before a function suspends
 - [ ] **Budget alerts** at 50 / 80 / 100% on Vercel, Neon, Upstash
 - [ ] DNS: public domain + `admin.` subdomain; TLS on both
 - [ ] Vercel env vars per SRS §9, **production secrets scoped to Production only**; migrator credential **not** in Vercel

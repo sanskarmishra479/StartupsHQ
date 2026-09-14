@@ -124,8 +124,9 @@ startupsHQ/
     │   │                         search media prefill import audit stats fx privacy
     │   ├── validation/           one Zod module per entity + shared.ts
     │   ├── dto/                  row → DTO mappers
-    │   └── lib/                  slug money fx cursor ip origin safe-fetch
-    │                             cache-tags errors
+    │   ├── testing/              authz conformance harness (TEST_PLAN §7)
+    │   └── lib/                  fx cursor ip origin safe-fetch cache-tags errors
+    ├── lib/                      client-safe pure helpers: slug money
     ├── app/
     │   ├── (public)/             page routes, see §6.1
     │   ├── admin/                admin host only
@@ -351,10 +352,10 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 |---|---|
 | FR-401 | **Prefill:** given a URL, return a draft object from OG tags, JSON-LD, `<title>`/meta and apple-touch-icon/favicon. **Every** fetch — page, `og:image`, icons, Firecrawl-returned URLs — goes through `safeFetch` (SEC-05). Fetched images are stored as `staging` media assets. All fields editable; never persisted as an entity, never published. Degrades to a partial result rather than failing. |
 | FR-402 | **CSV import:** dry-run mandatory. The dry-run stores normalized rows (`import_jobs.rows`) and the file's SHA-256; commit applies **those stored rows** (no re-upload), within 24 h. Commit **re-validates against current DB state inside the transaction** and aborts with a conflict if anything changed since the dry-run. Duplicate detection: exact slug, then trigram similarity > 0.85. `;`-separated founder/investor names resolve to existing records or become drafts. Max 1,000 rows. Values are stored raw. |
-| FR-403 | **Slugs:** generated from name (transliterated via `immutable_unaccent`, lowercase, hyphenated), uniqueness-checked with a numeric suffix. Editors cannot change a published slug; admins can (FR-409). |
+| FR-403 | **Slugs:** generated from name (Unicode NFKD with diacritics stripped, lowercase ASCII, hyphenated, ≤ 80 chars — `src/lib/slug.ts`), uniqueness-checked with a numeric suffix. A name with no Latin letters or digits (e.g. `株式会社`) yields no slug, so the editor must type one; nothing is ever transliterated silently. Editors cannot change a published slug; admins can (FR-409). |
 | FR-404 | **Derived fields:** `total_raised_usd`, `total_debt_usd`, `latest_round_id` recomputed inside the same transaction as any round insert/update/archive/delete. Grants and secondaries are shown in the timeline and excluded from totals. Only **published** rounds count: totals are public, so a draft or archived round would leak its amount. Implemented once, in `src/server/db/derived.ts`. |
 | FR-405 | **Audit:** every mutation writes an `audit_log` row inside its transaction, with personal-data fields recorded by name only (DM-12). |
-| FR-406 | **FX conversion:** editors enter `currency` + `amount_original`; the server computes `amount_usd` from `fx_rates` using the rate on `announced_on` or the latest prior business day, and stores `fx_rate`, `fx_rate_date`, `fx_source = 'ecb'`. A currency ECB does not publish requires an admin-entered rate with `fx_source = 'manual'` and a source note. |
+| FR-406 | **FX conversion:** editors enter `currency` + `amount_original`; the server computes `amount_usd` from `fx_rates` using the rate on `announced_on` or the latest prior date with a rate — never a later one, and never more than 7 days older (otherwise the save is refused with 422) — and stores `fx_rate`, `fx_rate_date`, `fx_source = 'ecb'`. A currency ECB does not publish requires an admin-entered rate with `fx_source = 'manual'` and a source note. |
 | FR-407 | **Deletion is archiving.** DELETE on an entity sets `status = archived`, `archived_at`; publicly it 404s; it can be restored. Hard delete is admin-only and permitted only when `first_published_at is null`. |
 | FR-408 | **Media:** uploads are sniffed, pixel-limited and re-encoded (SEC-06), stored as pre-generated WebP variants, created in `staging` and marked `attached` when an entity referencing them is saved. A scheduled job deletes staging assets older than 24 h and unreferenced attached assets older than 7 days. |
 | FR-409 | **Slug redirects:** an admin slug change inserts the old slug into `slug_redirects` and flattens chains. Public pages and API reads for an old slug return 301 to the current one. |

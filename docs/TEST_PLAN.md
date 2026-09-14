@@ -111,7 +111,7 @@ Every write service: happy path, rollback on failure, derived fields, audit row,
 
 ## 7. Authz conformance suite *(SEC-03, NFR-10)*
 
-`src/server/services/__tests__/authz.spec.ts` — table-driven, enumerating every exported function in `src/server/services/**` and `src/server/cache/**`.
+`src/server/services/authz.test.ts` (harness in `src/server/testing/authz.ts`, itself proven against a conforming stub and a deliberately broken fixture service) — table-driven, enumerating every exported function in `src/server/services/**` and `src/server/cache/**`.
 
 ```
 for each READ service function:
