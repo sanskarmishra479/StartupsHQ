@@ -1,13 +1,10 @@
 import "server-only";
 
-import { and, eq, type SQL, sql } from "drizzle-orm";
-import {
-  type AnyPgColumn,
-  alias,
-  type SelectedFields,
-} from "drizzle-orm/pg-core";
+import { and, eq, inArray, type SQL, sql } from "drizzle-orm";
+import { alias, type SelectedFields } from "drizzle-orm/pg-core";
 import type { ReadContext } from "../../auth/context";
 import { visibilityFilter } from "../../auth/visibility";
+import { type StartupCard, toStartupCard } from "../../dto/startup";
 import type { Database } from "../client";
 import {
   fundingRounds,
@@ -19,8 +16,9 @@ import {
 } from "../schema";
 
 // The one query every startup card comes from (docs/API.md §7.1): the explore grid, similar
-// companies, portfolios, cohorts and category pages. Visibility is applied to the startup and
-// to every joined entity that has a status, so no caller can forget a hop (SEC-03.2).
+// companies, portfolios, cohorts, founder pages and the news feed. Visibility is applied to the
+// startup and to every joined entity that has a status, so no caller can forget a hop
+// (SEC-03.2).
 
 const acquirer = alias(startups, "acquirer");
 const latestRound = alias(fundingRounds, "latest_round");
@@ -100,11 +98,17 @@ export function selectStartupCards<
     .where(and(visibilityFilter(ctx, startups.status), where));
 }
 
-/** A media asset as JSON for aggregated subqueries; null when there is no asset. */
-export function mediaJson(media: {
-  id: AnyPgColumn;
-  variants: AnyPgColumn;
-  blurDataUrl: AnyPgColumn;
-}): SQL {
-  return sql`case when ${media.id} is null then null else json_build_object('variants', ${media.variants}, 'blurDataUrl', ${media.blurDataUrl}) end`;
+/**
+ * Cards for the given startup ids, keyed by id, in one query. Ids of startups hidden from `ctx`
+ * are simply absent from the map, so callers drop links to them.
+ */
+export async function loadStartupCards(
+  db: Database,
+  ctx: ReadContext,
+  ids: readonly string[],
+): Promise<Map<string, StartupCard>> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const rows = await selectStartupCards(db, ctx, inArray(startups.id, unique));
+  return new Map(rows.map((row) => [row.id, toStartupCard(row)]));
 }

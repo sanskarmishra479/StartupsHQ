@@ -141,7 +141,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 ## Phase 4 · Service layer — reads
 
 - [x] `services/startups.ts` — `getBySlug` (incl. redirect lookup), `list(ctx, filters, sort, cursor)`, `listSimilar` · shared card query in `db/queries/startup-cards.ts` applies visibility at every join
-- [ ] `services/founders.ts`, `services/investors.ts` (`getPortfolio`, `getRoundsLed`, `getBreakdown`), `services/batches.ts` (`getStats`), `services/rounds.ts` (`listRecent`, `listForStartup`)
+- [x] `services/founders.ts`, `services/investors.ts` (`getPortfolio`, `getRoundsLed`; the breakdown is computed inside `getBySlug`, so no separate `getBreakdown`), `services/batches.ts` (`getStats`), `services/rounds.ts` (`listRecent`, `listForStartup`) · shared `db/queries/{rounds,slugs,sql}.ts` and `lib/keyset.ts`
 - [ ] `services/taxonomy.ts` — `getPage` returns NotFound for nonexistent values; `isGenerated`; `isIndexable` (< 5 ⇒ false) **(FR-108)**
 - [ ] `services/search.ts` — ranked FTS (`simple` + unaccent), trigram fallback, `suggest` ≤ 8; **not cached**
 - [ ] `services/stats.ts`

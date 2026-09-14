@@ -12,11 +12,13 @@ import {
   sql,
 } from "drizzle-orm";
 import { isSlug } from "../../lib/slug";
-import { isAuthedContext, type ReadContext } from "../auth/context";
+import type { ReadContext } from "../auth/context";
 import { visibilityFilter, visibleSql } from "../auth/visibility";
 import { type Database, getDb } from "../db/client";
+import { ROUND_FEED_ORDER, selectRounds } from "../db/queries/rounds";
+import { findRedirect, type SlugLookup } from "../db/queries/slugs";
+import { mediaJson, subquery } from "../db/queries/sql";
 import {
-  mediaJson,
   primaryIndustry,
   selectStartupCards,
 } from "../db/queries/startup-cards";
@@ -29,7 +31,6 @@ import {
   investors,
   locations,
   mediaAssets,
-  slugRedirects,
   startupBatches,
   startupFounders,
   startupIndustries,
@@ -37,7 +38,6 @@ import {
 } from "../db/schema";
 import type { MediaVariant } from "../db/schema/media";
 import {
-  type RoundRow,
   type Stage,
   type Startup,
   type StartupCard,
@@ -47,19 +47,15 @@ import {
   toStartupCard,
   type WorkType,
 } from "../dto/startup";
-import {
-  assertPageAllowed,
-  type Cursor,
-  cursorSecret,
-  decodeCursor,
-  encodeCursor,
-  type KeyValue,
-} from "../lib/cursor";
-import { NotFoundError, ValidationError } from "../lib/errors";
-import { clampLimit, type Page, toPage } from "../lib/pagination";
+import type { Cursor } from "../lib/cursor";
+import { NotFoundError } from "../lib/errors";
+import { beginPage, cursorKey, finishPage } from "../lib/keyset";
+import { clampLimit, type Page } from "../lib/pagination";
 
 // Startup reads (docs/API.md §6.1–6.3, FR-101, FR-102). Every function takes the context first
 // and derives visibility from it at every hop (SEC-03.1, SEC-03.2).
+
+export type { SlugLookup } from "../db/queries/slugs";
 
 export const STARTUP_SORTS = ["recent", "raised", "name"] as const;
 export type StartupSort = (typeof STARTUP_SORTS)[number];
@@ -87,11 +83,6 @@ export type ListStartupsInput = Readonly<{
   cursor?: string;
   limit?: number;
 }>;
-
-/** A slug read either finds the entity or answers with its current slug (FR-409). */
-export type SlugLookup<T> =
-  | Readonly<{ kind: "found"; value: T }>
-  | Readonly<{ kind: "redirect"; slug: string }>;
 
 export const MAX_SIMILAR = 9;
 
@@ -226,29 +217,17 @@ type CardRow = Awaited<ReturnType<typeof selectStartupCards>>[number];
 
 type SortSpec = {
   order: SQL[];
-  key: (row: CardRow) => KeyValue[];
+  key: (row: CardRow) => (string | number)[];
   /** Rows strictly after the cursor, in this sort's order. */
-  after: (cursor: Cursor<StartupSort>) => SQL;
+  after: (cursor: Cursor) => SQL;
 };
-
-const invalidCursor = () =>
-  new ValidationError([{ path: "cursor", message: "Invalid cursor." }]);
-
-function keyOf<T extends "string" | "number">(
-  cursor: Cursor<StartupSort>,
-  type: T,
-): T extends "string" ? string : number {
-  const [value] = cursor.key;
-  if (cursor.key.length !== 1 || typeof value !== type) throw invalidCursor();
-  return value as T extends "string" ? string : number;
-}
 
 const SORTS: Record<StartupSort, SortSpec> = {
   recent: {
     order: [desc(startups.createdAt), asc(startups.id)],
     key: (row) => [row.sortCreatedAt],
     after: (cursor) => {
-      const createdAt = keyOf(cursor, "string");
+      const createdAt = cursorKey(cursor, "string");
       return sql`(${startups.createdAt} < ${createdAt}::timestamptz or (${startups.createdAt} = ${createdAt}::timestamptz and ${startups.id} > ${cursor.id}::uuid))`;
     },
   },
@@ -256,7 +235,7 @@ const SORTS: Record<StartupSort, SortSpec> = {
     order: [desc(startups.totalRaisedUsd), asc(startups.id)],
     key: (row) => [row.totalRaisedUsd],
     after: (cursor) => {
-      const raised = keyOf(cursor, "number");
+      const raised = cursorKey(cursor, "number");
       return sql`(${startups.totalRaisedUsd} < ${raised} or (${startups.totalRaisedUsd} = ${raised} and ${startups.id} > ${cursor.id}::uuid))`;
     },
   },
@@ -264,7 +243,7 @@ const SORTS: Record<StartupSort, SortSpec> = {
     order: [asc(sql`lower(${startups.name})`), asc(startups.id)],
     key: (row) => [row.sortName],
     after: (cursor) =>
-      sql`(lower(${startups.name}), ${startups.id}) > (${keyOf(cursor, "string")}, ${cursor.id}::uuid)`,
+      sql`(lower(${startups.name}), ${startups.id}) > (${cursorKey(cursor, "string")}, ${cursor.id}::uuid)`,
   },
 };
 
@@ -277,38 +256,27 @@ export async function list(
 ): Promise<Page<StartupCard>> {
   const sort = input.sort ?? "recent";
   const spec = SORTS[sort];
-  const limit = clampLimit(input.limit);
-  const cursor =
-    input.cursor === undefined
-      ? undefined
-      : decodeCursor(input.cursor, sort, cursorSecret());
-  const page = cursor?.page ?? 1;
-  assertPageAllowed(page, isAuthedContext(ctx));
-
+  const request = beginPage(ctx, sort, input.cursor, input.limit);
   const db = getDb();
+
   const rows = await selectStartupCards(
     db,
     ctx,
     and(
       ...filterConditions(db, ctx, input.filters ?? {}),
-      cursor ? spec.after(cursor) : undefined,
+      request.cursor ? spec.after(request.cursor) : undefined,
     ),
   )
     .orderBy(...spec.order)
-    .limit(limit + 1);
+    .limit(request.limit + 1);
 
-  return toPage(rows, limit, toStartupCard, (last) =>
-    encodeCursor(
-      { sort, key: spec.key(last), id: last.id, page: page + 1 },
-      cursorSecret(),
-    ),
-  );
+  return finishPage(request, rows, toStartupCard, (row) => ({
+    key: spec.key(row),
+    id: row.id,
+  }));
 }
 
 // ── Detail ───────────────────────────────────────────────────────────────────────────────────
-
-/** Wraps a subquery so its columns stay table-qualified even in a single-table select. */
-const subquery = <T>(inner: SQL) => sql<T>`(${inner})`;
 
 function detailColumns(ctx: ReadContext) {
   return {
@@ -394,66 +362,6 @@ function selectFounders(
     );
 }
 
-function selectRounds(
-  db: Database,
-  ctx: ReadContext,
-  startupId: string,
-): Promise<RoundRow[]> {
-  return db
-    .select({
-      id: fundingRounds.id,
-      roundType: fundingRounds.roundType,
-      roundClass: fundingRounds.roundClass,
-      announcedOn: fundingRounds.announcedOn,
-      isUndisclosed: fundingRounds.isUndisclosed,
-      currency: fundingRounds.currency,
-      amountOriginal: fundingRounds.amountOriginal,
-      amountUsd: fundingRounds.amountUsd,
-      fxRate: fundingRounds.fxRate,
-      fxRateDate: fundingRounds.fxRateDate,
-      valuationUsd: fundingRounds.valuationUsd,
-      sourceUrl: fundingRounds.sourceUrl,
-      sourceTitle: fundingRounds.sourceTitle,
-      investors: subquery<RoundRow["investors"]>(sql`
-        select coalesce(json_agg(json_build_object('slug', ${investors.slug}, 'name', ${investors.name}, 'isLead', ${investments.isLead}, 'logo', ${mediaJson(mediaAssets)})
-                 order by ${investments.isLead} desc, ${investors.name}), '[]'::json)
-        from ${investments}
-        inner join ${investors} on ${investors.id} = ${investments.investorId} and ${visibleSql(ctx, investors.status)}
-        left join ${mediaAssets} on ${mediaAssets.id} = ${investors.logoAssetId}
-        where ${investments.roundId} = ${fundingRounds.id}`),
-    })
-    .from(fundingRounds)
-    .where(
-      and(
-        eq(fundingRounds.startupId, startupId),
-        visibilityFilter(ctx, fundingRounds.status),
-      ),
-    )
-    .orderBy(desc(fundingRounds.announcedOn), asc(fundingRounds.id));
-}
-
-/** Resolves an old slug to the entity's current slug, or throws NotFoundError. */
-async function findRedirect(
-  db: Database,
-  ctx: ReadContext,
-  oldSlug: string,
-): Promise<string> {
-  const [row] = await db
-    .select({ slug: startups.slug })
-    .from(slugRedirects)
-    .innerJoin(startups, eq(startups.id, slugRedirects.entityId))
-    .where(
-      and(
-        eq(slugRedirects.entityType, "startup"),
-        eq(slugRedirects.oldSlug, oldSlug),
-        visibilityFilter(ctx, startups.status),
-      ),
-    )
-    .limit(1);
-  if (!row) throw new NotFoundError();
-  return row.slug;
-}
-
 /**
  * The company page (FR-102). At most 3 round-trips: the startup with its aggregates, then
  * founders and rounds in parallel (NFR-01). Unknown or hidden ⟹ NotFoundError; an old slug ⟹
@@ -473,12 +381,17 @@ export async function getBySlug(
     detailColumns(ctx),
   ).limit(1);
   if (!row) {
-    return { kind: "redirect", slug: await findRedirect(db, ctx, slug) };
+    return {
+      kind: "redirect",
+      slug: await findRedirect(db, ctx, "startup", slug),
+    };
   }
 
   const [founderRows, roundRows] = await Promise.all([
     selectFounders(db, ctx, row.id),
-    selectRounds(db, ctx, row.id),
+    selectRounds(db, ctx, eq(fundingRounds.startupId, row.id)).orderBy(
+      ...ROUND_FEED_ORDER,
+    ),
   ]);
   return { kind: "found", value: toStartup(row, founderRows, roundRows) };
 }
