@@ -42,28 +42,28 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] `next.config.ts`: `cacheComponents: true`; `images.unoptimized: true` (ADR-012); `poweredByHeader: false`; baseline headers (nosniff, referrer policy, frame DENY, permissions policy)
 - [x] `tsconfig.json`: ES2022, `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch`, alias `@/*`
 - [x] `server-only` installed; Node tooling (drizzle-kit, later Vitest and scripts) runs with `--conditions=react-server` so the guard stays on every server file
-- [~] **Supply chain (SEC-13):** done — `"packageManager": "pnpm@12.4.1"`; `pnpm-workspace.yaml` with `strictDepBuilds: true`, `dangerouslyAllowAllBuilds: false`, `minimumReleaseAge: 4320`, and every dependency build script reviewed in `allowBuilds` (`esbuild`, `sharp`, `unrs-resolver` denied — prebuilt binaries). Pending — CI `--frozen-lockfile`; `audit-exceptions.json`
+- [x] **Supply chain (SEC-13):** `"packageManager": "pnpm@12.4.1"`; `pnpm-workspace.yaml` with `strictDepBuilds: true`, `dangerouslyAllowAllBuilds: false`, `minimumReleaseAge: 4320`, every dependency build script reviewed in `allowBuilds` (`esbuild`, `sharp`, `unrs-resolver` denied — prebuilt binaries); CI installs with `--frozen-lockfile`; audit gate is `pnpm audit --audit-level high`. No exceptions needed: the one known advisory is **moderate** (GHSA-67mh-4wv8-2f99, esbuild ≤ 0.24.2 via drizzle-kit — affects esbuild's dev server, which drizzle-kit never starts). High-severity exceptions, if ever needed, go in pnpm's audit config with an owner and expiry
 - [x] `docker-compose.yml`: Postgres 17.11 pinned by digest, bound to 127.0.0.1 only, named volume, healthcheck, `startupshq_test` created on init
 - [x] Local two-origin dev: `localhost` and `admin.localhost` both resolve (host routing itself is Phase 6)
 - [x] `.env.example` with every variable from SRS §9 — no real values; copied to gitignored `.env.local` (mode 600)
 - [x] `src/server/db/client.ts` — the **only** module reading `DATABASE_URL`; lazy pool, so builds never connect
 - [x] `drizzle.config.ts` (migrations use `MIGRATION_DATABASE_URL`, local/CI only); generated `drizzle/` excluded from Biome
-- [ ] Vitest (node env, per-suite truncate + reseed) · Playwright config
-- [ ] `scripts/check-bundle-leak.ts` — scans `.next` client chunks for the **values** of server secrets (from CI env) and `postgres(ql)?://` **(SEC-01)**
-- [ ] Sentry SDK installed with PII scrubbing (DSN empty until Phase 22)
+- [x] Vitest (`vitest.config.mts`, node env, `server-only` resolved to its empty module, `vitest.setup.ts` forces a `*_test` database) · Playwright config (Chromium, production build; specs in Phase 21). Per-suite truncate + reseed arrives with the schema in Phase 1–2
+- [x] `scripts/check-bundle-leak.ts` — scans client chunks and prerendered HTML/RSC payloads for server secret **values** and `postgres(ql)?://` **(SEC-01)**; unit-tested, and verified to fail on a planted value in a real build
+- [x] ~~Sentry SDK~~ **moved to Phase 20** — it does nothing before a DSN exists, and deferring it avoids reviewing `@sentry/cli`'s build script now
 - [x] Directory skeleton per SRS §3.2
-- [ ] Scripts: `dev build start lint typecheck test test:e2e test:cov db:generate db:migrate db:studio db:seed seed:admin check:leak recompute:derived`
-- [ ] `.github/workflows/ci.yml`: install → lint → typecheck → unit → integration (Postgres 17 service) → build → `check:leak` → audit
-- [ ] `.github/workflows/migrate.yml` skeleton (runs on `main`, `production` protected environment, required reviewer) **(ADR-015)**
-- [ ] Dependabot config (`npm` and `github-actions` ecosystems)
+- [x] Scripts: `dev build start lint format typecheck test test:watch test:e2e check:leak db:up db:down db:generate db:migrate db:studio` — `test:cov` (Phase 4), `db:seed` (Phase 2), `seed:admin` (Phase 6), `recompute:derived` (Phase 5) are added with their files
+- [x] `.github/workflows/ci.yml`: frozen install → lint → typecheck → tests (Postgres 17.11 service, same digest) → build → `check:leak` → audit; read-only token, SHA-pinned GitHub-owned actions
+- [x] `.github/workflows/migrate.yml` skeleton (main only, `production` environment) **(ADR-015)** — inert until the `ENABLE_PRODUCTION_MIGRATIONS` repo variable is set in Phase 22
+- [x] Dependabot config (`npm`, `github-actions`, `docker-compose`; 3-day cooldown matching `minimumReleaseAge`) — `[?]` confirm Dependabot handles pnpm 12 lockfiles on its first run
 - [ ] **Public repo hardening (SEC-20, ADR-021):**
   - [x] secret scanning + push protection enabled (2026-09-14)
   - [x] Dependabot alerts + security updates enabled (2026-09-14)
   - [ ] branch protection on `main` requiring the CI status check, with admin bypass — **decided 2026-09-14: direct pushes to `main`; CI must pass, and a red run is fixed before any other work** (apply once `ci.yml` exists)
-  - [ ] Actions restricted to GitHub-owned + verified actions; every `uses:` pinned by full commit SHA
-  - [ ] every workflow declares `permissions:` (default `contents: read`); no `pull_request_target`
-  - [ ] fork pull request workflows require approval
-  - [ ] `SECURITY.md` + GitHub private vulnerability reporting enabled
+  - [x] Actions restricted to GitHub-owned actions only, with **SHA pinning required** by repo policy (2026-09-14)
+  - [x] every workflow declares `permissions: contents: read`; repo default token is read-only and cannot approve PRs; no `pull_request_target`
+  - [x] fork pull request workflows require approval for all external contributors
+  - [x] `SECURITY.md` + GitHub private vulnerability reporting enabled
   - [ ] `production` environment with you as required reviewer — created in Phase 22 when secrets exist
 - [x] **LICENSE — decided 2026-09-14: none (all rights reserved).** No LICENSE file is added; the root `README.md` created in Phase 0 states that all rights are reserved
 
@@ -369,7 +369,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] Keyboard pass; axe clean on `/`, company, founder, `/search`, `/admin`
 - [ ] Skeletons, error boundaries, CLS ≈ 0; dark mode audit; 404/500 pages
 - [ ] Lighthouse ≥ 95 / 100 on a company page
-- [ ] Sentry receiving events from preview with PII scrubbed **(NFR-07)**
+- [ ] Sentry SDK installed (moved here from Phase 0) and receiving events from preview with PII scrubbed **(NFR-07)**
 
 ## Phase 21 · End-to-end suite
 

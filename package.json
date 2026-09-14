@@ -17,7 +17,11 @@
     "db:down": "docker compose down",
     "db:generate": "NODE_OPTIONS=--conditions=react-server drizzle-kit generate",
     "db:migrate": "NODE_OPTIONS=--conditions=react-server drizzle-kit migrate",
-    "db:studio": "NODE_OPTIONS=--conditions=react-server drizzle-kit studio"
+    "db:studio": "NODE_OPTIONS=--conditions=react-server drizzle-kit studio",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:leak": "tsx scripts/check-bundle-leak.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
@@ -31,6 +35,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.2",
     "@next/env": "16.3.4",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24",
     "@types/pg": "^8.23.1",
@@ -38,6 +43,8 @@
     "@types/react-dom": "^19",
     "drizzle-kit": "^0.31.10",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.23.13",
+    "typescript": "^5",
+    "vitest": "^5.0.0"
   }
 }

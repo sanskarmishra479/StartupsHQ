@@ -33,3 +33,11 @@ export function getDb(): Database {
   globalForDb.__startupshqDb = { pool, db };
   return db;
 }
+
+/** Closes the pool. For scripts and tests — the running app never calls this. */
+export async function closeDb(): Promise<void> {
+  const existing = globalForDb.__startupshqDb;
+  if (!existing) return;
+  globalForDb.__startupshqDb = undefined;
+  await existing.pool.end();
+}

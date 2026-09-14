@@ -1,0 +1,52 @@
+# Production migrations (ADR-015). Runs only from main, in the protected `production`
+# environment, which holds the migrator credential. Vercel never has that credential.
+#
+# Inert until Phase 22: set the repository variable ENABLE_PRODUCTION_MIGRATIONS=true
+# only after the `production` environment exists with a required reviewer.
+name: Migrate production database
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "drizzle/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  migrate:
+    if: ${{ vars.ENABLE_PRODUCTION_MIGRATIONS == 'true' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm (version from package.json)
+        run: corepack enable pnpm
+
+      - name: Install (frozen lockfile, supply-chain policies)
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations
+        run: pnpm db:migrate
+        env:
+          MIGRATION_DATABASE_URL: ${{ secrets.MIGRATION_DATABASE_URL }}

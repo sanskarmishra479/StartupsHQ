@@ -87,7 +87,7 @@ startupsHQ/
 ├── drizzle.config.ts
 ├── next.config.ts                headers, CSP (public), images.unoptimized
 ├── pnpm-workspace.yaml           supply-chain settings (SEC-13)
-├── biome.json · vitest.config.ts · playwright.config.ts
+├── biome.json · vitest.config.mts · vitest.setup.ts · playwright.config.ts
 ├── .env.example
 ├── SECURITY.md                   private vulnerability reporting (SEC-20)
 ├── .github/workflows/
@@ -101,6 +101,7 @@ startupsHQ/
 │   ├── seed.ts                   fixture data (also seeds the preview branch)
 │   ├── seed-admin.ts             creates first admin user
 │   ├── check-bundle-leak.ts      scans client bundle for secret values/patterns
+│   ├── lib/leak-scan.ts          the scanner (unit-tested)
 │   ├── recompute-derived.ts      repair derived totals
 │   └── fixtures/                 CSV fixtures
 └── src/
