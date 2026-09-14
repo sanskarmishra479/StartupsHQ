@@ -59,13 +59,13 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] **Public repo hardening (SEC-20, ADR-021):**
   - [x] secret scanning + push protection enabled (2026-09-14)
   - [x] Dependabot alerts + security updates enabled (2026-09-14)
-  - [ ] branch protection on `main` requiring CI — **decide (you):** PR-only, or direct pushes with admin bypass while solo
+  - [ ] branch protection on `main` requiring the CI status check, with admin bypass — **decided 2026-09-14: direct pushes to `main`; CI must pass, and a red run is fixed before any other work** (apply once `ci.yml` exists)
   - [ ] Actions restricted to GitHub-owned + verified actions; every `uses:` pinned by full commit SHA
   - [ ] every workflow declares `permissions:` (default `contents: read`); no `pull_request_target`
   - [ ] fork pull request workflows require approval
   - [ ] `SECURITY.md` + GitHub private vulnerability reporting enabled
   - [ ] `production` environment with you as required reviewer — created in Phase 22 when secrets exist
-- [ ] `[?]` **LICENSE (you decide):** none = all rights reserved (code visible but not legally reusable), or an open-source license
+- [x] **LICENSE — decided 2026-09-14: none (all rights reserved).** No LICENSE file is added; the root `README.md` created in Phase 0 states that all rights are reserved
 
 **EXIT:** `docker compose up -d db` healthy · `pnpm typecheck && pnpm lint && pnpm build && pnpm check:leak` pass · CI green on first push · both local origins resolve.
 

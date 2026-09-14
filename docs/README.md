@@ -61,6 +61,7 @@ Each ADR carries a **Revisit if** line naming the condition that should reopen i
 | 2026-09-12 | v1: PRD, SRS, API, ARCHITECTURE (ADR-001…011), TEST_PLAN, TODO |
 | 2026-09-14 | v2: full review against Next.js 16, Vercel, Neon, Upstash and Better Auth docs. Added ADR-012…020; cache-safe public reads; admin subdomain + split CSP; SSRF rebinding and image-URL defence; mandatory 2FA; CSRF origin checks; trusted client IP; archive-not-delete; off-provider backups; migrations out of the build; FX conversion and "total raised" definition; slug redirects; CSV commit integrity; media staging + GC; facet 404/noindex rules; GDPR handling; supply-chain hardening; paid tiers at launch; doc inconsistencies fixed |
 | 2026-09-14 | Repository made public: ADR-021 and SEC-20 (public-repo hygiene). pnpm 12 supply-chain settings confirmed from pnpm docs (`strictDepBuilds`, `allowBuilds`, `minimumReleaseAge: 4320`), resolving the Phase 0 `[?]` |
+| 2026-09-14 | Decisions: direct pushes to `main` with required CI (fix red runs immediately); no license — all rights reserved |
 
 ## Conventions
 

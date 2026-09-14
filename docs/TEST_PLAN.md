@@ -8,7 +8,7 @@ Every `SEC-*`, `FR-*` and `NFR-*` requirement in SRS.md must have a named verifi
 
 ## 1. Quality gates
 
-No merge to `main` unless all hold:
+Every push to `main` runs these gates. Commits go directly to `main` (admin bypass while solo, decided 2026-09-14), so **a failing gate is fixed before any other work continues**:
 
 | Gate | Threshold | Enforced by |
 |---|---|---|
