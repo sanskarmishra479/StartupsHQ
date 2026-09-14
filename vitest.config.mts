@@ -24,5 +24,19 @@ export default defineConfig({
     // Suites share one test database and the seed suite truncates it, so files run one at a time.
     fileParallelism: false,
     setupFiles: ["./vitest.setup.ts"],
+    coverage: {
+      provider: "v8",
+      include: ["src/server/**/*.ts"],
+      exclude: [
+        "**/*.test.ts",
+        "src/server/testing/**",
+        "src/server/db/seed/fixtures.ts",
+      ],
+      reporter: ["text-summary", "text"],
+      // NFR-10: at least 80% of lines in the service layer.
+      thresholds: {
+        "src/server/services/**": { lines: 80 },
+      },
+    },
   },
 });

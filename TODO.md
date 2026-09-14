@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 3 complete — Phase 4 (service layer, reads) next · **Last updated:** 2026-09-14
+**Status:** Phase 4 complete — Phase 5 (service layer, writes) next · **Last updated:** 2026-09-14
 
 ---
 
@@ -152,7 +152,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] Integration tests per TEST_PLAN §6 (reads), incl. pagination stability for each sort · "two visitors share one cache entry" is covered structurally here (frozen identity-free `PUBLIC_READ`; static scan: no cached scope takes a context or reads request data); the real one-query-for-two-visitors check needs a production build and moves to Phase 22
 - [x] Assert ≤ 3 round-trips for the company page on a miss **(NFR-01)** — also founder pages
 
-**EXIT:** every read tested · no draft/archived leak via services or cache · coverage ≥ 80%.
+**EXIT:** ✅ every read tested · no draft/archived leak via services or cache · coverage ≥ 80% — `pnpm test:coverage` (`@vitest/coverage-v8`, decided 2026-09-14): services 100% lines, `src/server` 89% lines / 86% branches; the 80% services threshold is enforced in `vitest.config.mts`.
 
 ---
 
