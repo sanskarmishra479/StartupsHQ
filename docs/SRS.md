@@ -1,0 +1,437 @@
+# startupsHQ — Software Requirements Specification
+
+**Status:** Draft v2 · **Last updated:** 2026-09-14 · Companion to [PRD.md](./PRD.md)
+
+Requirement IDs are stable and referenced from tests and `TODO.md`: `FR-*` functional, `SEC-*` security, `NFR-*` non-functional, `DM-*` data model.
+
+> **v2 (2026-09-14):** revised after a full review against current Next.js 16, Vercel, Neon, Upstash and Better Auth documentation. Key changes: Next.js 16 caching/proxy APIs, cache-safe public reads, admin subdomain with split CSP, SSRF rebinding defence, 2FA, soft delete + independent backups, FX conversion, migrations moved out of the build step, GDPR handling. Rationale lives in [ARCHITECTURE.md](./ARCHITECTURE.md) ADR-012 … ADR-020.
+
+---
+
+## 1. Scope & definitions
+
+This document is the authority on **requirements**: schema, authorization semantics, security and non-functional budgets. [API.md](./API.md) is the authority on the **endpoint contract** (paths, params, DTO shapes, status codes) and must satisfy the requirements here. When code and a document disagree, one of them is a bug — resolve explicitly, don't drift.
+
+| Term | Meaning |
+|---|---|
+| **Entity** | One of: startup, founder, investor, batch, funding round |
+| **Service** | A function in `src/server/services/*` — the only code that touches the DB |
+| **ctx** | `RequestContext` — the caller's identity, required first arg of every service function |
+| **PublicReadContext** | The cache-safe, identity-free context accepted by cached public reads (§5.2) |
+| **DTO** | The shaped object a service returns; never a raw DB row |
+| **Facet** | A filterable dimension: industry, stage, work type, city, country |
+| **Public origin** | `https://startupshq.com` (domain TBD) — public site and read API |
+| **Admin origin** | `https://admin.startupshq.com` — admin UI and all write API |
+
+## 2. Technology
+
+| Layer | Technology | Notes |
+|---|---|---|
+| Runtime | Node 24 (local: v24.14.1) | Next.js 16 requires ≥ 20.9 |
+| Package manager | pnpm 10 | Lockfile committed; hardened per SEC-13 |
+| Framework | **Next.js 16**, App Router, React 19.2 | Cache Components (`'use cache'`), `proxy.ts` (not `middleware.ts`), Turbopack |
+| Language | TypeScript 5, `strict: true` | `noUncheckedIndexedAccess` on |
+| DB | PostgreSQL 17 — Docker local, Neon prod | Extensions: `pg_trgm`, `unaccent` (via an IMMUTABLE wrapper, DM-13) |
+| ORM | Drizzle ORM + drizzle-kit | Migrations committed as SQL |
+| Auth | Better Auth | Email + password, **mandatory TOTP 2FA**, role column |
+| Email | Transactional provider (Resend or Postmark) | Invites, password reset, 2FA recovery |
+| Styling | Tailwind CSS v4 + shadcn/ui (Radix) | |
+| Validation | Zod | One schema per entity, shared client/server |
+| Images | Vercel Blob + `sharp` | Sizes **pre-generated at upload**; served directly, not through the Vercel image optimizer (ADR-012) |
+| Outbound HTTP | `safeFetch` (undici agent with connect-time IP validation) | Every server-side fetch of a URL we did not author (SEC-05) |
+| Scraping | `cheerio`; Firecrawl API as fallback | Prefill only |
+| CSV | `papaparse` | |
+| Rate limiting | **Vercel WAF** at the edge for public API; `@upstash/ratelimit` for login + prefill only | ADR-017 |
+| Error monitoring | Sentry, PII scrubbing on | Required before launch (NFR-07) |
+| Lint/format | Biome | |
+| Tests | Vitest (unit/integration) + Playwright (e2e) | |
+| CI / ops jobs | GitHub Actions | CI, migrations, nightly backups, retention, media GC |
+| Hosting | Vercel + Neon + Vercel Blob; Cloudflare R2 for backups | Free tiers for development only — see NFR-12 |
+
+## 3. Architecture
+
+### 3.1 The boundary
+
+```
+┌─ BROWSER ───────────────────────────────────────────────────────────┐
+│  startupshq.com: cached HTML · fetch /api/v1 (reads, no credentials) │
+│  admin.startupshq.com: admin UI · fetch /api/v1 (writes, cookie)     │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ HTTPS
+                     ┌──────────▼──────────┐
+                     │ Vercel WAF (edge)   │  rate limits · bot challenge
+                     └──────────┬──────────┘
+┌─ SERVER ──────────────────────▼─────────────────────────────────────┐
+│  proxy.ts            host routing: /admin + writes only on admin     │
+│  src/app/(public)/   UI — no DB import, never reads cookies          │
+│  src/app/admin/      UI — admin host only                            │
+│  src/app/api/v1/     parse → origin check → Zod → authz → service   │
+│  src/server/**  'server-only'   THE data layer                      │
+│      ctx-first services · PublicReadContext cached reads · Drizzle   │
+└───────────────────────────────┬─────────────────────────────────────┘
+                                │ TLS, pooled, app role (DML only)
+                           ┌────▼─────┐
+                           │ Postgres │
+                           └──────────┘
+```
+
+**Server Components call services in-process; all browser-originated requests go through `/api/v1`** (ADR-002). Public pages use only cached reads with `PublicReadContext` (ADR-013). All writes are served exclusively from the admin origin (ADR-014).
+
+### 3.2 Source tree
+
+```
+startupsHQ/
+├── docs/                         README · PRD · SRS · API · ARCHITECTURE · TEST_PLAN
+├── TODO.md                       build sequence, backend → frontend
+├── docker-compose.yml            local Postgres 17
+├── drizzle.config.ts
+├── next.config.ts                headers, CSP (public), images.unoptimized
+├── pnpm-workspace.yaml           supply-chain settings (SEC-13)
+├── biome.json · vitest.config.ts · playwright.config.ts
+├── .env.example
+├── .github/workflows/
+│   ├── ci.yml                    lint → typecheck → tests → build → leak scan → audit
+│   ├── migrate.yml               migrations on merge to main, protected env (ADR-015)
+│   ├── backup.yml                nightly encrypted pg_dump → R2 (SEC-17)
+│   ├── restore-test.yml          monthly restore verification
+│   └── maintenance.yml           audit retention · media GC · FX rate import
+├── drizzle/                      generated SQL migrations (committed)
+├── scripts/
+│   ├── seed.ts                   fixture data (also seeds the preview branch)
+│   ├── seed-admin.ts             creates first admin user
+│   ├── check-bundle-leak.ts      scans client bundle for secret values/patterns
+│   ├── recompute-derived.ts      repair derived totals
+│   └── fixtures/                 CSV fixtures
+└── src/
+    ├── server/                   ← 'server-only'. THE ONLY DB ACCESS.
+    │   ├── db/
+    │   │   ├── client.ts         the single module reading DATABASE_URL
+    │   │   ├── schema/           startups founders investors batches rounds
+    │   │   │                     taxonomy joins media redirects fx auth ops enums index
+    │   │   └── relations.ts
+    │   ├── auth/
+    │   │   ├── context.ts        RequestContext, PublicReadContext, constructors
+    │   │   ├── guards.ts         assertEditor, assertAdmin
+    │   │   ├── visibility.ts     visibilityFilter(ctx)
+    │   │   └── better-auth.ts    auth instance, 2FA plugin, adapter
+    │   ├── cache/                'use cache' public reads — PublicReadContext only
+    │   ├── services/             startups founders investors batches rounds taxonomy
+    │   │                         search media prefill import audit stats fx privacy
+    │   ├── validation/           one Zod module per entity + shared.ts
+    │   ├── dto/                  row → DTO mappers
+    │   └── lib/                  slug money fx cursor ip origin safe-fetch
+    │                             cache-tags errors
+    ├── app/
+    │   ├── (public)/             page routes, see §6.1
+    │   ├── admin/                admin host only
+    │   ├── api/v1/
+    │   ├── layout.tsx
+    │   └── sitemap.ts robots.ts
+    ├── components/               ui/ (shadcn) · cards/ · filters/ · forms/ · layout/
+    ├── hooks/
+    ├── lib/                      client-safe utils ONLY
+    ├── types/
+    └── proxy.ts                  host routing + /admin gate (layer 1 of 3)
+```
+
+**Rule:** nothing under `src/app/(public)`, `src/components`, `src/hooks` or `src/lib` may import from `src/server/**`. `server-only` makes violations a build error.
+
+## 4. Data model
+
+Common to all entity tables (startups, founders, investors, batches, funding_rounds): `id uuid pk default gen_random_uuid()`, `created_at timestamptz not null default now()`, `updated_at timestamptz not null`, `created_by uuid → users.id`, `updated_by uuid → users.id`, `status publish_status not null default 'draft'`, `first_published_at timestamptz` (set once, never cleared), `archived_at timestamptz`.
+
+### 4.1 Enums (DM-01)
+
+| Enum | Values |
+|---|---|
+| `stage` | bootstrapped, pre_seed, seed, series_a, series_b, series_c, series_d, series_e, series_f, series_g, growth, public, acquired, dead |
+| `round_type` | pre_seed, seed, series_a … series_g, convertible, bridge, debt, grant, secondary |
+| `round_class` | equity, convertible, debt, non_dilutive, secondary — **derived** from `round_type` (DM-06) |
+| `work_type` | remote, onsite, hybrid |
+| `headcount_band` | 1-10, 11-50, 51-200, 201-500, 501-1000, 1000+ |
+| `investor_type` | vc, accelerator, angel, corporate, pe, government, crowdfunding |
+| `publish_status` | draft, published, archived |
+| `founder_role` | founder, cofounder, ceo, cto, operator, advisor, early_employee |
+| `taxonomy_kind` | industry, stage, work_type, city, country |
+| `user_role` | admin, editor |
+| `media_purpose` | logo, cover, photo, og |
+| `media_state` | staging, attached |
+| `import_status` | dry_run, committed, expired, failed |
+
+### 4.2 `startups` (DM-02)
+
+| Column | Type | Constraints |
+|---|---|---|
+| slug | text | unique, not null, `^[a-z0-9-]+$` |
+| name | text | not null |
+| legal_name | text | |
+| tagline | text | ≤ 120 chars |
+| description | text | ≤ 4000 chars |
+| website_url, careers_url | text | https URL |
+| linkedin_url, x_url, github_url | text | https URL |
+| logo_asset_id, cover_asset_id, og_asset_id | uuid → media_assets | nullable |
+| stage | `stage` | |
+| work_type | `work_type` | |
+| headcount_band | `headcount_band` | |
+| founded_year | integer | range validated in Zod (1900 … current year + 1) — **not** a DB CHECK, which would depend on the current date |
+| founded_on | date | nullable; precise date when known |
+| location_id | uuid → locations | |
+| is_active | boolean | not null default true |
+| acquired_by_startup_id | uuid → startups | self-FK, nullable |
+| acquired_by_name | text | fallback when acquirer not in DB |
+| acquired_on | date | |
+| acquired_amount_usd | bigint | |
+| total_raised_usd | bigint | **derived** — Σ `amount_usd` of rounds with `round_class` ∈ {equity, convertible} |
+| total_debt_usd | bigint | **derived** — Σ `amount_usd` of rounds with `round_class` = debt |
+| latest_round_id | uuid → funding_rounds | **derived** — latest equity/convertible round by `announced_on` |
+| search_vector | tsvector | generated: `simple` config over `immutable_unaccent(name)` (A) + tagline (B) + description (C) |
+
+**Check constraints:** `acquired_on` requires `acquired_by_startup_id` or `acquired_by_name`; `extract(year from founded_on) = founded_year` when both present.
+
+### 4.3 `founders` (DM-03)
+
+`slug` unique · `full_name` not null · `headline` ≤ 160 · `bio` ≤ 4000 · `photo_asset_id` → media_assets (nullable; initials avatar when absent — SEC-18) · `linkedin_url`, `x_url`, `github_url`, `personal_url` · `location_id` → locations · `search_vector` = `simple` over `immutable_unaccent(full_name)` (A) + headline (B) + bio (C).
+
+### 4.4 `investors` (DM-04)
+
+`slug` unique · `name` not null · `investor_type` not null · `description` ≤ 4000 · `logo_asset_id`, `og_asset_id` · `website_url` · `founded_year` · `hq_location_id` → locations · `aum_usd bigint` · `search_vector` = `simple` over `immutable_unaccent(name)` (A) + description (C).
+
+### 4.5 `batches` (DM-05)
+
+`slug` unique (e.g. `yc-w24`) · `investor_id` → investors (nullable — YC is both an investor and a batch organizer) · `program_name` not null · `label` not null · `season` · `year` integer not null · `starts_on` · `demo_day_on` · `description` · `logo_asset_id`, `og_asset_id`. Unique on (`investor_id`, `label`, `year`) **NULLS NOT DISTINCT**.
+
+### 4.6 `funding_rounds` (DM-06)
+
+| Column | Type | Constraints |
+|---|---|---|
+| startup_id | uuid → startups | not null, on delete cascade (only reachable via hard delete of a never-published startup, FR-407) |
+| round_type | `round_type` | not null |
+| round_class | `round_class` | **generated** from `round_type`: pre_seed…series_g → equity; convertible, bridge → convertible; debt → debt; grant → non_dilutive; secondary → secondary |
+| announced_on | date | not null |
+| is_undisclosed | boolean | not null default false |
+| currency | char(3) | not null default 'USD' |
+| amount_original | numeric(20,2) | amount in `currency` as reported |
+| amount_usd | bigint | **computed server-side**, never editor-entered (FR-406) |
+| fx_rate | numeric(18,8) | USD per 1 unit of `currency`; `1` for USD |
+| fx_rate_date | date | rate date used (≤ `announced_on`) |
+| fx_source | text | `ecb` \| `manual` (manual requires admin, FR-406) |
+| valuation_usd | bigint | |
+| source_url | text | not null (the press article) |
+| source_title, notes | text | |
+
+**Checks:** `is_undisclosed = true` ⟺ `amount_original is null and amount_usd is null`. `currency <> 'USD' and not is_undisclosed` ⟹ `fx_rate, fx_rate_date, fx_source` all not null.
+
+### 4.7 `locations` (DM-07)
+
+`slug` unique · `city` · `region` · `country` not null · `country_code char(2)` not null · `lat`, `lng` numeric. Unique on (`city`, `country_code`) **NULLS NOT DISTINCT**.
+
+### 4.8 `industries` (DM-08)
+
+`slug` unique · `name` not null · `icon_url` · `description`.
+
+### 4.9 `taxonomy_pages` (DM-09)
+
+`kind taxonomy_kind` · `slug` · `heading` · `intro` (markdown) · `icon_url` · `seo_title` · `seo_description` · `sort_order int`. Unique on (`kind`, `slug`).
+
+Holds editable copy/SEO for facet values. Facet **values** stay typed (enum columns, real FKs); only presentation is data. A row may exist only for a facet value that exists (enforced in the service). A missing row degrades to a generated heading — but a facet value that does not exist is a 404 (FR-108).
+
+### 4.10 Join tables (DM-10)
+
+| Table | Columns | Constraints / notes |
+|---|---|---|
+| `startup_founders` | id pk, startup_id, founder_id, role `founder_role`, is_current bool, joined_year int, left_year int, sort_order int, source_url text | Unique (startup_id, founder_id, role, joined_year) **NULLS NOT DISTINCT** — a founder may leave and return, or change role. Check `left_year ≥ joined_year`. |
+| `investments` | id pk, startup_id, investor_id, round_id (nullable → funding_rounds), is_lead bool, amount_usd bigint | Unique (startup_id, investor_id, round_id) **NULLS NOT DISTINCT** — without it Postgres permits unlimited duplicate `(s, i, NULL)` rows. "Backed by" = DISTINCT investor_id; participants = rows for a round_id (ADR-005). |
+| `startup_batches` | startup_id, batch_id | PK both |
+| `startup_industries` | startup_id, industry_id, is_primary bool | PK both; partial unique `(startup_id) WHERE is_primary` |
+
+### 4.11 Media, redirects, FX (DM-11)
+
+- **`media_assets`** — id, `blob_prefix`, `purpose media_purpose`, `state media_state` (staging → attached on save), `variants jsonb` (`[{ width, height, url, bytes }]`), `blur_data_url`, `source_url` (nullable; where it was fetched from), `created_by`, `created_at`, `attached_at`. Variant widths — logo: 64/128/256 · cover: 640/1280/1920 · photo: 128/256/512 · og: 1200×630. All WebP.
+- **`slug_redirects`** — id, `entity_type`, `old_slug`, `entity_id`, `created_at`. Unique (`entity_type`, `old_slug`). Chains are flattened on write (every old slug points at the entity, never at another old slug).
+- **`fx_rates`** — `currency char(3)`, `rate_date date`, `usd_per_unit numeric(18,8)`, `source text`. PK (`currency`, `rate_date`). Imported daily from ECB reference rates (cross-computed to USD).
+
+### 4.12 Ops tables (DM-12)
+
+- `users`, `sessions`, `accounts`, `verifications`, `two_factor` — Better Auth schema; `users.role user_role not null default 'editor'`.
+- **`audit_log`** — id, entity_type, entity_id, action (create/update/archive/restore/publish/unpublish/slug_change/hard_delete/erase), actor_id, `diff jsonb`, `ip inet` (nullable), created_at. The app role may only `INSERT`. **Personal-data fields** (founder `full_name`, `headline`, `bio`, links, photo; user email) are recorded as `{"field": "bio", "changed": true}` with no values. `ip` is nulled after 90 days and rows are deleted after 12 months by the `retention` role job (SEC-11).
+- **`import_jobs`** — id, filename, `file_sha256`, `status import_status`, `rows jsonb` (normalized, validated rows from the dry-run), row_count, create_count, update_count, skip_count, error_count, `errors jsonb`, actor_id, created_at, `expires_at` (created_at + 24 h), `committed_at`.
+- **`erasure_log`** — id, entity_type, `entity_id_hash` (SHA-256, no personal data), actor_id, erased_at. Proof an erasure happened without retaining what was erased.
+
+### 4.13 Functions & indexes (DM-13)
+
+- Migration prologue: `CREATE EXTENSION pg_trgm; CREATE EXTENSION unaccent;` and `immutable_unaccent(text)` — an IMMUTABLE SQL wrapper calling `unaccent('unaccent', $1)`. **`unaccent()` itself is not IMMUTABLE and is rejected inside a generated column.**
+- Unique b-tree on every `slug`; index on every FK column in every join table.
+- GIN on each `search_vector`; GIN `gin_trgm_ops` on `immutable_unaccent(lower(name))` for startups, founders (`full_name`), investors.
+- **Keyset indexes, one per supported sort** (FR-3xx): `startups(status, created_at DESC, id)`, `startups(status, total_raised_usd DESC NULLS LAST, id)`, `startups(status, lower(name), id)`; `funding_rounds(announced_on DESC, id)`; `funding_rounds(startup_id, announced_on DESC)`.
+- Facet filters: `startups(status, stage)`, `startups(status, location_id)`.
+
+## 5. Authorization model
+
+### 5.1 RequestContext (SEC-03)
+
+```ts
+export type Actor = { id: string; role: 'admin' | 'editor' };
+export type RequestContext =
+  | { kind: 'public'; ip: string }
+  | { kind: 'authed'; actor: Actor; ip: string };
+```
+
+### 5.2 PublicReadContext — cache-safe reads (SEC-03.6)
+
+```ts
+// A frozen singleton. No ip, no actor, nothing that varies per request.
+export const PUBLIC_READ: PublicReadContext = Object.freeze({ kind: 'public-read' });
+```
+
+`'use cache'` derives the cache key from function arguments. Passing a per-request `ctx` (which carries `ip`) would give every visitor a distinct key — zero cache hits — and passing an `authed` ctx would store drafts in a cache shared with the public. Both are prevented structurally.
+
+| ID | Requirement |
+|---|---|
+| SEC-03.1 | Every exported service function takes a context as its **first parameter**, non-optional. Omission is a compile error. |
+| SEC-03.2 | Every read derives its status predicate from `visibilityFilter(ctx)`. A `public` or `public-read` ctx cannot yield a `draft` or `archived` row. |
+| SEC-03.3 | Every mutation begins with `assertEditor(ctx)` (or `assertAdmin`), which type-narrows to `authed` and throws `ForbiddenError` otherwise. |
+| SEC-03.4 | `publicContext()`, `authedContext()` and `PUBLIC_READ` in `src/server/auth/context.ts` are the only constructors. Absent or unverifiable identity ⟹ `public`. Fail closed. |
+| SEC-03.5 | Three independent layers protect writes: `proxy.ts` (host + session gate) → `requireEditor()` in the handler → `assertEditor(ctx)` in the service. `proxy.ts` is never the sole check (cf. CVE-2025-29927, a 2025 middleware-bypass vulnerability). |
+| SEC-03.6 | Functions in `src/server/cache/**` accept **only** `PublicReadContext`; their parameter types make an `authed` or per-request ctx a compile error, and a runtime guard rejects anything else. Editor previews use separate, uncached reads. |
+| SEC-03.7 | Public page routes never read cookies or headers, so they stay cacheable and can never branch on identity. |
+
+## 6. Functional requirements
+
+Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). This section states *what* must exist.
+
+### 6.1 Public pages (FR-1xx) — served on the public origin
+
+| ID | Path | Requirement |
+|---|---|---|
+| FR-101 | `/` | Explore grid. Facets via URL params (stage, industry, work type, city, country, batch, investor, founder, q). Sorts: recent, raised, name. Signed keyset cursor pagination, 24/page. Acquired companies excluded by default, toggleable. Card links use hover prefetch, not viewport prefetch (NFR-11). |
+| FR-102 | `/companies/[slug]` | Cover + logo, name (with "(Acquired by X)"), tagline, description, meta row, founders strip, "Backed by" investor logos, batch badges, round timeline newest-first with cited sources, totals (raised, and debt shown separately when present), ≥ 6 similar companies. Unknown, draft or archived ⟹ 404. An old slug ⟹ 301 to the current slug (FR-409). |
+| FR-103 | `/founders/[slug]` | Photo or initials avatar, name, headline, bio, links, and **every** startup with role, tenure, current/past, newest-first. Same 404/301 rules. |
+| FR-104 | `/investors/[slug]` | Logo, name, type, description, website, portfolio grid (paginated), rounds led, stage and industry breakdown. |
+| FR-105 | `/batches/[slug]` | Program + label, dates, cohort grid, stats: company count, total raised, top 5 industries. |
+| FR-106 | `/news` | Rounds newest-first grouped by date: logo, company, amount (with original currency when non-USD) or "Undisclosed", round type, date, source link. Paginated. |
+| FR-107 | `/categories` | Directory of all facets with ≥ 1 published company, grouped by kind. |
+| FR-108 | `/categories/{industries,stages,work-type,locations/cities,locations/countries}/[slug]` | One shared component. **404 unless the facet value exists and has ≥ 1 published company.** Copy from `taxonomy_pages` with a generated fallback for real values only. Facets with < 5 published companies render with `noindex` and are excluded from nav and sitemap. |
+| FR-109 | `/search` | Ranked full-text across the four entity types, grouped; trigram fallback for misspellings. Not cached per query. |
+| FR-110 | `/sitemap.xml`, `/robots.txt` | Sitemap: all published entities + indexable category pages. `robots.txt`: disallow `/api/`. |
+| FR-111 | OG images | Generated **at publish/update** via `next/og`, stored as a media asset (purpose `og`), referenced in metadata by Blob URL. No per-request OG rendering. |
+| FR-112 | `/about`, `/privacy` | Static. About: data sourcing, corrections and takedown policy. Privacy: what personal data is held, lawful basis, how to request access/correction/erasure/objection (SEC-18). Required at launch. |
+
+### 6.2 Admin (FR-2xx) — served only on the admin origin
+
+| ID | Path | Requirement |
+|---|---|---|
+| FR-201 | `/admin/login` | Email + password, then **TOTP 2FA (mandatory for every user)**. Enrollment forced on first login; 10 single-use recovery codes. Generic error text. Password reset by email. |
+| FR-202 | `/admin` | Counts per entity, draft queue, 20 most recent audit entries, pending import jobs. |
+| FR-203 | `/admin/{entity}` | Paginated, searchable list; status filter (draft/published/archived); bulk publish; archive and restore. Entities: startups, founders, investors, batches, rounds. |
+| FR-204 | `/admin/startups/new`, `/admin/startups/[id]/edit` | Sectioned form: basics, media, classification, location, founders, investors, batches, rounds. Comboboxes link existing records or create drafts inline. Save-draft and Publish are distinct actions. |
+| FR-205 | `/admin/categories` | Edit `taxonomy_pages` copy for existing facet values only. |
+| FR-206 | `/admin/import` | Upload CSV → dry-run table → commit within 24 h. |
+| FR-207 | `/admin/media` | Asset browser; shows staging vs attached. |
+| FR-208 | `/admin/users` | Admin-only: invite by email, change role, reset a user's 2FA, deactivate. |
+| FR-209 | Slug change | Admin-only action on any entity's edit screen; writes `slug_redirects` (FR-409). |
+| FR-210 | `/admin/privacy` | Admin-only: record a privacy request, run founder erasure (FR-410). |
+
+### 6.3 API (FR-3xx)
+
+- Base `/api/v1`. JSON. Full contract in [API.md](./API.md).
+- **Reads** are served on the public origin with no credentials and use `PublicReadContext` or `publicContext()`.
+- **Writes** are served **only** on the admin origin; the same paths on the public origin return 404 (ADR-014).
+- Pagination: opaque, **HMAC-signed** keyset cursor encoding `(sort, sort-key value, id)` — never `OFFSET`. A cursor minted for one sort is rejected for another. Anonymous callers may page at most 20 pages deep per listing (SEC-15).
+- `/suggest` p95 ≤ 150 ms (NFR-01).
+
+### 6.4 Editorial features (FR-4xx)
+
+| ID | Requirement |
+|---|---|
+| FR-401 | **Prefill:** given a URL, return a draft object from OG tags, JSON-LD, `<title>`/meta and apple-touch-icon/favicon. **Every** fetch — page, `og:image`, icons, Firecrawl-returned URLs — goes through `safeFetch` (SEC-05). Fetched images are stored as `staging` media assets. All fields editable; never persisted as an entity, never published. Degrades to a partial result rather than failing. |
+| FR-402 | **CSV import:** dry-run mandatory. The dry-run stores normalized rows (`import_jobs.rows`) and the file's SHA-256; commit applies **those stored rows** (no re-upload), within 24 h. Commit **re-validates against current DB state inside the transaction** and aborts with a conflict if anything changed since the dry-run. Duplicate detection: exact slug, then trigram similarity > 0.85. `;`-separated founder/investor names resolve to existing records or become drafts. Max 1,000 rows. Values are stored raw. |
+| FR-403 | **Slugs:** generated from name (transliterated via `immutable_unaccent`, lowercase, hyphenated), uniqueness-checked with a numeric suffix. Editors cannot change a published slug; admins can (FR-409). |
+| FR-404 | **Derived fields:** `total_raised_usd`, `total_debt_usd`, `latest_round_id` recomputed inside the same transaction as any round insert/update/archive/delete. Grants and secondaries are shown in the timeline and excluded from totals. |
+| FR-405 | **Audit:** every mutation writes an `audit_log` row inside its transaction, with personal-data fields recorded by name only (DM-12). |
+| FR-406 | **FX conversion:** editors enter `currency` + `amount_original`; the server computes `amount_usd` from `fx_rates` using the rate on `announced_on` or the latest prior business day, and stores `fx_rate`, `fx_rate_date`, `fx_source = 'ecb'`. A currency ECB does not publish requires an admin-entered rate with `fx_source = 'manual'` and a source note. |
+| FR-407 | **Deletion is archiving.** DELETE on an entity sets `status = archived`, `archived_at`; publicly it 404s; it can be restored. Hard delete is admin-only and permitted only when `first_published_at is null`. |
+| FR-408 | **Media:** uploads are sniffed, pixel-limited and re-encoded (SEC-06), stored as pre-generated WebP variants, created in `staging` and marked `attached` when an entity referencing them is saved. A scheduled job deletes staging assets older than 24 h and unreferenced attached assets older than 7 days. |
+| FR-409 | **Slug redirects:** an admin slug change inserts the old slug into `slug_redirects` and flattens chains. Public pages and API reads for an old slug return 301 to the current one. |
+| FR-410 | **Founder erasure (privacy):** admin-only. Removes the founder, their join rows and media, scrubs `audit_log` rows referencing the entity, invalidates caches, adds an `erasure_log` entry. Irreversible; requires typed confirmation. |
+
+## 7. Security requirements
+
+| ID | Requirement | Verified by |
+|---|---|---|
+| SEC-01 | No DB access or secret reachable from client code: `server-only` on every `src/server/**` file; `DATABASE_URL` read only in `src/server/db/client.ts`; no `NEXT_PUBLIC_` secret. | `check-bundle-leak.ts` scans client chunks for the **values** of server secrets (injected in CI) and for connection-string patterns (`postgres(ql)?://`) |
+| SEC-02 | All input Zod-validated at the API boundary, re-validated server-side; unknown body fields rejected. All queries parameterized via Drizzle. | Contract tests |
+| SEC-03 | Data-layer authorization per §5, including cache-safe public reads (SEC-03.6, SEC-03.7). | Authz conformance suite |
+| SEC-04 | **Sessions & CSRF.** Session cookie is host-only on the admin origin (no `Domain` attribute), httpOnly, `Secure`, `SameSite=Lax`, `__Host-` prefix *if Better Auth supports it* — otherwise `__Secure-` with host-only scope, which gives equivalent subdomain isolation (decided in Phase 6). Rotation on privilege change; server-side revocation. **Mandatory TOTP 2FA** for all users. **CSRF:** the shared handler wrapper rejects every non-GET request whose `Origin` is not the admin origin (fallback: `Sec-Fetch-Site: same-origin`), and JSON routes require `Content-Type: application/json`. Better Auth's own origin checks cover its auth routes only. | e2e + contract tests |
+| SEC-05 | **SSRF.** Every server-side fetch of a URL not authored by us uses `safeFetch`: `https` only; the IP is validated **at connect time on the actual socket** (defeats DNS rebinding) against loopback, private (10/8, 172.16/12, 192.168/16), link-local (169.254/16 incl. `169.254.169.254`), CGNAT (100.64/10), `0.0.0.0/8`, IPv6 `::1`, `fc00::/7`, `fe80::/10` and IPv4-mapped IPv6; redirects handled manually and re-validated, max 3; 5 s timeout; 5 MB cap. Applies to the pasted page **and** every image/icon URL it references **and** URLs returned by Firecrawl. Editor-only, rate-limited. | Unit + contract tests incl. rebinding mock |
+| SEC-06 | **Uploads.** MIME sniffed from magic bytes; allowlist jpg/png/webp/svg; 5 MB byte cap; sharp `limitInputPixels` = 24 MP (decompression-bomb guard) and `failOn: 'error'`; SVG rasterized at a capped density with external references disallowed; output dimensions capped; re-encoded to WebP (strips EXIF and embedded payloads); random Blob prefixes. | Unit tests |
+| SEC-07 | **CSV.** Row cap; per-field Zod; mandatory dry-run; stored rows + SHA-256; commit re-validation in one transaction; 24 h expiry. Formula-prefix neutralization (`= + - @`, tab, CR) is applied **on CSV export only** — stored values stay raw. | Unit tests |
+| SEC-08 | **Rate limiting.** Edge: Vercel WAF rules on `/api/v1/*` keyed on IP and JA4, with a bot challenge on list endpoints — blocked traffic never reaches a function. App (Upstash): login — hard limit 20 attempts / 15 min per IP, plus progressive delay per email after 5 failures (1 s doubling to 30 s), **no account lockout**; prefill — 20 / hour per user. Better Auth's limiter uses Upstash as shared storage (in-memory limits do not work across serverless instances). Failure mode: login and prefill **fail closed**; public reads rely on WAF only. | Integration tests + WAF config review |
+| SEC-09 | **Headers & CSP.** Admin origin: nonce-based strict CSP (`script-src 'nonce-…' 'strict-dynamic'`), rendered dynamically. Public origin: hash-based CSP via Next.js `experimental.sri` so pages stay statically cacheable; if SRI proves unworkable, fall back to a CSP without script nonces that still enforces `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, `img-src 'self' <blob host>` — acceptable because no credential is valid on the public origin (ADR-014). Both origins: HSTS `max-age=31536000; includeSubDomains` (**preload only post-launch**, SEC-19), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`, minimal Permissions-Policy. | Header assertion tests |
+| SEC-10 | **DB roles.** `app_rw`: DML on content tables, INSERT-only on `audit_log`, no DDL. `migrator`: DDL, used **only** by the GitHub Actions migration workflow in a protected environment — never present in Vercel. `retention`: UPDATE/DELETE on `audit_log` only. `backup_ro`: read-only. TLS via the Neon pooler. | Test: DDL as `app_rw` → permission denied |
+| SEC-11 | **Audit.** Append-only for the app; personal-data fields recorded by name only; `ip` nulled after 90 days; rows deleted after 12 months by the `retention` job. | Unit + retention job test |
+| SEC-12 | Error responses never leak stack traces, SQL, table names or internal ids. Server logs and Sentry carry detail, with PII scrubbing. | Unit tests |
+| SEC-13 | **Supply chain.** `pnpm install --frozen-lockfile` in CI; dependency lifecycle scripts disabled except an explicit allowlist (e.g. `sharp`); a minimum release age of ~3 days before new dependency versions can be installed (exact pnpm setting verified in Phase 0); Dependabot; `pnpm audit` gate fails on high severity **except** listed advisories with an owner and expiry date. | CI |
+| SEC-14 | **Client IP** is taken only from the platform's trusted source (`ipAddress()` from `@vercel/functions`), in one helper. `X-Forwarded-For` supplied by clients is never trusted. | Unit test |
+| SEC-15 | **Anti-scraping.** Signed cursors; max 20-page depth for anonymous pagination; `limit` ≤ 48; public DTOs contain only fields the UI renders; WAF bot challenge (SEC-08); `robots.txt` disallows `/api/`; a private list of watermark phrasings in a few published descriptions (factually correct wording — never fake records, per PRD principle 5) to detect bulk copies. | Contract tests + review |
+| SEC-16 | **Deploy isolation.** Preview deployments use a Neon branch created from a **seed-data branch**, never from production; Vercel Authentication is enabled on previews; production secrets are scoped to the Production environment only. Migrations never run in the Vercel build step (ADR-015). | Deployment checklist |
+| SEC-17 | **Backups.** Neon point-in-time restore ≥ 7 days (Launch plan) in production; nightly `pg_dump` by `backup_ro`, encrypted with `age`, uploaded to Cloudflare R2 with 30-day lifecycle; monthly automated restore test into a scratch branch comparing row counts; failure alerts. | `restore-test.yml` |
+| SEC-18 | **Personal data.** `/privacy` notice at launch; requests (access, correction, erasure, objection) handled within 30 days via a published email address and `/admin/privacy`; erasure per FR-410; founder photos only when founder-supplied or licensed — otherwise initials avatar; `startup_founders.source_url` records where each attribution came from. Reviewed by legal counsel before launch. | Launch checklist |
+| SEC-19 | **HSTS preload** is enabled only after ≥ 3 months of stable HTTPS on every subdomain (preload removal takes months). | Post-launch checklist |
+
+## 8. Non-functional requirements
+
+| ID | Requirement |
+|---|---|
+| NFR-01 | **Performance:** LCP ≤ 2.0 s p75 mobile; TTFB ≤ 400 ms for a cached page; `/suggest` p95 ≤ 150 ms; company page ≤ 3 SQL round-trips on a cache miss. |
+| NFR-02 | **Caching (Next.js 16):** public reads are `'use cache'` functions in `src/server/cache/**` taking only `PublicReadContext`, tagged via `cacheTag` with tags from `cache-tags.ts`. Mutations call `revalidateTag(tag, { expire: 0 })` for every affected tag (immediate expiry, valid in route handlers). The deprecated single-argument `revalidateTag(tag)` and `unstable_cache` are not used. Search and suggest are not cached per query. Stale content after a publish is a bug. |
+| NFR-03 | **SEO:** every indexable public page server-rendered with unique `<title>`, description, canonical, OG/Twitter tags (OG image from Blob, FR-111); JSON-LD `Organization` on companies, `Person` on founders; sitemap regenerated on publish. `noindex` is applied only to thin facet pages (FR-108) and to non-content routes. |
+| NFR-04 | **Accessibility:** WCAG 2.1 AA — keyboard reachable, visible focus, ≥ 4.5:1 contrast in both themes, alt text on every image (initials avatars labelled), labelled controls, ARIA on comboboxes. |
+| NFR-05 | **Responsive:** 360 px to 2560 px, no horizontal body scroll. |
+| NFR-06 | **Theming:** light/dark via CSS custom properties; respects `prefers-color-scheme`; explicit toggle persists per viewer. |
+| NFR-07 | **Observability:** Sentry live before launch (PII scrubbing on); structured logs with request id. Vercel retains runtime logs only 1 h (Hobby) / 1 day (Pro), so Sentry is the incident record. |
+| NFR-08 | **Data integrity:** money as `bigint` whole USD, never float; FX recorded per round; multi-table writes transactional; FK and check constraints enforced in the DB. |
+| NFR-09 | **Browsers:** Chrome/Edge/Firefox 111+, Safari 16.4+ (Next.js 16 baseline); iOS Safari 17+. |
+| NFR-10 | **Test coverage:** ≥ 80% lines on `src/server/services`; 100% of mutation functions and 100% of `src/server/cache/**` functions in the authz conformance suite. |
+| NFR-11 | **Cost controls:** Vercel image-optimizer transformations = 0 (`images.unoptimized` for Blob assets; variants pre-generated); dense link grids use hover prefetch only; OG images pre-rendered; WAF blocks abusive traffic before compute; Upstash used only for low-volume limits; spend management / budget alerts at 50 / 80 / 100 % on Vercel, Neon and Upstash; monthly cost review. |
+| NFR-12 | **Hosting tiers:** development may use free tiers. **Public launch requires** Vercel Pro (Hobby is non-commercial only) and Neon Launch (7-day restore, SEC-17). Neon scale-to-zero stays enabled — caching keeps the DB idle, and a rare cold start is cheaper than always-on compute. |
+
+## 9. Environments
+
+**Vercel environment variables**
+
+| Variable | Purpose | Scope |
+|---|---|---|
+| `DATABASE_URL` | Postgres, `app_rw` role (DML only) | Production · Preview (preview branch) · local |
+| `BETTER_AUTH_SECRET` | session signing | per environment |
+| `BETTER_AUTH_URL` | = admin origin | per environment |
+| `NEXT_PUBLIC_SITE_URL` | public origin (non-secret) | all |
+| `ADMIN_ORIGIN` | admin origin, used by origin checks | all |
+| `CURSOR_SIGNING_SECRET` | HMAC key for cursors | per environment |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob | per environment |
+| `UPSTASH_REDIS_REST_URL` / `_TOKEN` | login + prefill limits, Better Auth limiter | Production · Preview |
+| `EMAIL_API_KEY`, `EMAIL_FROM` | transactional email | Production · Preview |
+| `SENTRY_DSN` | error monitoring | Production · Preview |
+| `FIRECRAWL_API_KEY` | prefill fallback | optional |
+
+**GitHub Actions secrets (never in Vercel)**
+
+`MIGRATION_DATABASE_URL` (migrator, protected `production` environment) · `BACKUP_DATABASE_URL` (`backup_ro`) · `RETENTION_DATABASE_URL` (`retention`) · `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` · `BACKUP_AGE_RECIPIENT` (public key; the private key is kept offline).
+
+**Environments:** **local** (Docker Postgres, `pnpm dev`, both origins via `localhost` and `admin.localhost`) · **preview** (Vercel per PR, Neon branch from the seed-data branch, Vercel Authentication on) · **production** (Vercel Pro + Neon Launch). Migrations run from `migrate.yml` on merge to `main`, before the production deployment is promoted, and must be backward-compatible with the currently deployed code (expand → deploy → contract).
+
+## 10. Acceptance criteria (v1 ships when)
+
+1. All `FR-1xx` public pages render correctly from seeded data; the PRD §8 traversal completes with no dead ends; old slugs 301.
+2. All `FR-2xx` admin screens work on the admin origin only; drafts and archived records are invisible publicly (verified by test).
+3. `SEC-01` … `SEC-18` satisfied, each with its named verification passing (SEC-19 is post-launch).
+4. Authz conformance suite covers every mutation and every cached public read; service-layer coverage ≥ 80%.
+5. Playwright graph-traversal, admin-CRUD, 2FA, CSRF and access-control specs green.
+6. Lighthouse ≥ 95 performance / 100 SEO on a company page; LCP ≤ 2.0 s p75 mobile; image transformations = 0.
+7. Prefill rejects every hostile URL in `SEC-05`, including rebinding and hostile `og:image`; CSV commit rejects a changed dataset.
+8. A backup has been restored successfully from R2; budget alerts are configured; production runs on Vercel Pro + Neon Launch.
+9. `/about` and `/privacy` are live and legally reviewed.
+10. ≥ 300 companies published, ≥ 1.5 founders each, ≥ 80% with a cited round, across ≥ 12 countries.
+
+---
+
+**See also:** [PRD.md](./PRD.md) · [API.md](./API.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [TEST_PLAN.md](./TEST_PLAN.md) · [../TODO.md](../TODO.md)

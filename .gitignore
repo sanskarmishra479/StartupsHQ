@@ -1,0 +1,46 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js / build output
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# environment & secrets — never commit (SEC-11). .env.example IS committed.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# backups & dumps (SEC-17) — encrypted or not, they never belong in git
+*.dump
+*.dump.age
+*.sql.gz
+
+# testing
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# deployment
+.vercel/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# editors & OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# local Claude Code settings (personal)
+.claude/settings.local.json

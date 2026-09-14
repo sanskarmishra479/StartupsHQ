@@ -1,0 +1,69 @@
+# startupsHQ — Documentation
+
+**Last updated:** 2026-09-14
+
+Read in this order. Each document answers a different question; they cross-reference rather than repeat.
+
+| Document | Question it answers | Authority on | Read it when |
+|---|---|---|---|
+| [PRD.md](./PRD.md) | **What** are we building and **why**? | Scope, users, success metrics | Deciding whether to build something |
+| [SRS.md](./SRS.md) | **What exactly** must be true? | Schema, authorization, security (`SEC-*`), performance and cost budgets (`NFR-*`) | Writing any code |
+| [API.md](./API.md) | **What is the contract?** | Endpoint paths, params, DTO shapes, status and error codes | Building or consuming an endpoint |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | **How is it put together, and why?** | Layering, lifecycles, caching, ops, cost model, Decision Records (ADR-001 … ADR-020) | Before changing anything structural |
+| [TEST_PLAN.md](./TEST_PLAN.md) | **How do we know it works?** | Quality gates, fixtures, security test matrix | Writing tests; judging whether a phase is done |
+| [../TODO.md](../TODO.md) | **What's next?** | Build sequence, backend before frontend | Every working session |
+
+If SRS and API.md disagree, SRS states the requirement and API.md must be corrected to satisfy it.
+
+## Requirement IDs
+
+SRS.md assigns stable IDs — `FR-*` functional, `SEC-*` security, `NFR-*` non-functional, `DM-*` data model. TODO tasks and TEST_PLAN tests reference them:
+
+```
+PRD (a need) ─▶ SRS (FR-102) ─▶ TODO (a task citing FR-102) ─▶ TEST_PLAN (a test asserting FR-102)
+```
+
+Code you can't trace to an ID is either missing an ID or unrequested.
+
+## How to change these documents
+
+Keeping them accurate matters more than keeping them stable. Changes propagate **downstream** so the set never contradicts itself:
+
+```
+PRD  ──▶  SRS  ──▶  API  ──▶  ARCHITECTURE  ──▶  TEST_PLAN  ──▶  TODO
+why       what      contract    how             proof         sequence
+```
+
+**Changing scope or a feature:** PRD §7 (and §10 if metrics change) → `FR-*` in SRS → API.md if an endpoint changes → verification in TEST_PLAN → task in TODO.
+
+**Changing the schema or an API contract:**
+1. Update `DM-*` / `FR-*` in SRS.
+2. Update API.md. After TODO Phase 8 it is frozen: additive changes stay in `v1`; breaking changes need `/api/v2` (API.md §9).
+3. Update ARCHITECTURE §4 if a traversal or query pattern changes.
+4. Update fixtures and tests in TEST_PLAN.
+5. Generate a migration. **Never hand-edit a committed migration.** Migrations must be backward-compatible with the deployed code (ADR-015).
+
+**Changing an architectural decision:**
+1. **Add a new ADR** in ARCHITECTURE §10 that supersedes or amends the old one. Never rewrite an accepted ADR — its rejected alternatives are the valuable part.
+2. Update only the old ADR's `Status` line (`Superseded by ADR-0NN` / `Amended by ADR-0NN`).
+3. Propagate to SRS, API, TEST_PLAN, TODO.
+
+Each ADR carries a **Revisit if** line naming the condition that should reopen it.
+
+**Changing security requirements:** `SEC-*` may be strengthened freely. Weakening one requires an ADR with rationale and a named replacement verification in TEST_PLAN — never a silent deletion.
+
+**Marking uncertainty:** tasks that depend on something not yet verified are marked `[?]` in TODO and must record their outcome back into SRS when resolved.
+
+## Revision history
+
+| Date | Change |
+|---|---|
+| 2026-09-12 | v1: PRD, SRS, API, ARCHITECTURE (ADR-001…011), TEST_PLAN, TODO |
+| 2026-09-14 | v2: full review against Next.js 16, Vercel, Neon, Upstash and Better Auth docs. Added ADR-012…020; cache-safe public reads; admin subdomain + split CSP; SSRF rebinding and image-URL defence; mandatory 2FA; CSRF origin checks; trusted client IP; archive-not-delete; off-provider backups; migrations out of the build; FX conversion and "total raised" definition; slug redirects; CSV commit integrity; media staging + GC; facet 404/noindex rules; GDPR handling; supply-chain hardening; paid tiers at launch; doc inconsistencies fixed |
+
+## Conventions
+
+- Update `Last updated` in any document you touch.
+- Prefer tables and requirement IDs; prose drifts.
+- One fact, one home — link instead of repeating.
+- Record open questions (PRD §12) rather than guessing.

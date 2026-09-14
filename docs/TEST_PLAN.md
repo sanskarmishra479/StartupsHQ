@@ -1,0 +1,266 @@
+# startupsHQ — Test Plan
+
+**Status:** Draft v2 · **Last updated:** 2026-09-14 · Companion to [SRS.md](./SRS.md)
+
+Every `SEC-*`, `FR-*` and `NFR-*` requirement in SRS.md must have a named verification here. A requirement with no test is not implemented — only intended.
+
+---
+
+## 1. Quality gates
+
+No merge to `main` unless all hold:
+
+| Gate | Threshold | Enforced by |
+|---|---|---|
+| Typecheck | zero errors, `strict` | CI |
+| Lint / format | zero Biome errors | CI |
+| Unit + integration | all green | CI |
+| **Authz conformance suite** | green; 100% of mutations and 100% of `src/server/cache/**` registered | CI |
+| Service-layer coverage | ≥ 80% lines (NFR-10) | CI |
+| Client bundle secret scan | zero hits | `check-bundle-leak.ts` |
+| Dependency audit | no unlisted high-severity advisory; listed exceptions unexpired | `pnpm audit` + exceptions file |
+| Frozen lockfile | install succeeds with `--frozen-lockfile` | CI |
+| E2E | all green | CI, from Phase 18 (Admin UI) |
+| axe | zero violations on the 5 key pages | CI, from Phase 20 (Polish) |
+| Lighthouse (company page) | ≥ 95 perf / 100 SEO | pre-release, manual |
+
+## 2. Levels
+
+| Level | Tool | Scope | Runs against |
+|---|---|---|---|
+| **Unit** | Vitest | Pure helpers: slug, money, fx, cursor, ip, origin check, safe-fetch IP classifier, DTO mappers, CSV parsing/export | no DB |
+| **Integration** | Vitest + Docker Postgres | Services with real SQL and constraints | test DB |
+| **Authz conformance** | Vitest | Context behaviour of every service and cached read | test DB |
+| **Contract** | Vitest + route handlers | `/api/v1` request → response, codes, envelopes, origins | test DB |
+| **E2E** | Playwright | Real browser on both origins (`localhost`, `admin.localhost`) | built app + test DB |
+| **Ops** | GitHub Actions | Migration, backup, restore, retention, GC jobs | scratch Neon branch |
+| **Non-functional** | Lighthouse, axe, manual | Perf, a11y, responsive, SEO, cost | preview |
+
+**Deliberately not mocked:** the database — its constraints are behaviour under test. Mocked: external HTTP only (target sites, Firecrawl, email provider, ECB feed), and DNS where testing rebinding.
+
+## 3. Test database lifecycle
+
+- `startupshq_test` in the local Docker Postgres; CI uses a Postgres 17 service container.
+- Migrations once per run (including `immutable_unaccent` and extensions); **truncate + reseed before each suite file**.
+- `scripts/seed.ts --test` so fixtures equal development data.
+- DB-role tests connect as `app_rw`, `retention` and `backup_ro`, created by a test-only setup migration mirroring SEC-10.
+
+## 4. Fixture catalog
+
+Each fixture has a named consumer; a fixture with no consumer should not exist.
+
+| Fixture | Consumed by |
+|---|---|
+| Undisclosed round | `formatAmount`; DM-06 check; timeline render; CSV validation |
+| **EUR round with fx rate** | FR-406 conversion; `Round` DTO fx fields; totals |
+| **Round in a currency absent from `fx_rates`** | `422` for editors; admin manual rate path |
+| **Debt, grant and secondary rounds on one startup** | `total_raised_usd` excludes them; `total_debt_usd` = debt only |
+| Acquired company, acquirer in DB / name only | header render; DM-02 check |
+| Company in two batches | many-to-many; badges |
+| **Founder across 3 startups, one with two stints at the same company** | founder ordering; DM-10 uniqueness allows it; graph E2E |
+| Investor across 5 rounds, leading 2 | portfolio pagination; rounds-led; breakdown |
+| **Investor linked with `round_id = NULL`** | duplicate insert rejected (`NULLS NOT DISTINCT`) |
+| Company with no founders / no rounds | empty states |
+| **One `draft` and one `archived` per entity** | authz suite; cached-read leak tests |
+| **Archived record that was previously published** | public 404; restore; hard delete refused |
+| **Never-published draft** | admin hard delete allowed |
+| **Slug redirect (old → current)** | 301 on page and API |
+| Facet value with no `taxonomy_pages` row but ≥ 5 companies | generated copy, indexable |
+| **Facet value with 3 companies** | `isIndexable: false`, excluded from sitemap |
+| **Facet value with 0 published companies** | 404 |
+| Near-identical company names | CSV trigram duplicate detection |
+| **Staging media asset older than 24 h; unreferenced attached asset older than 7 days** | media GC |
+| **Audit rows older than 90 days and 12 months** | retention job |
+| Names with diacritics and non-Latin scripts (Zürich, São Paulo, 東京) | slug transliteration; `simple` FTS; trigram search |
+
+## 5. Unit tests
+
+| Module | Assertions |
+|---|---|
+| `lib/slug` | transliteration via unaccent semantics; punctuation; collision suffix |
+| `lib/money` | `$30M`, `$550M`, `$1.2B`, `Undisclosed`, `null`; bigint only |
+| `lib/fx` | rate on the announcement date; falls back to latest prior business day; none available → error; rounding to whole USD |
+| `lib/cursor` | round-trip; HMAC tamper → reject; cursor minted for `sort=raised` rejected for `sort=name`; depth counter |
+| `lib/ip` | reads the platform-trusted IP; a client `X-Forwarded-For` is ignored (SEC-14) |
+| `lib/origin` | admin origin accepted; public origin, missing origin (without `Sec-Fetch-Site: same-origin`) and foreign origins rejected |
+| `lib/safe-fetch` IP classifier | every range in SEC-05, including IPv4-mapped IPv6 (`::ffff:127.0.0.1`), decimal (`2130706433`) and octal (`0177.0.0.1`) forms |
+| `dto/*` | no `created_by`, `updated_by`, audit fields, blob prefixes or internal ids |
+| CSV parse / export | per-field errors; raw storage; formula neutralization **only in export** |
+| audit diff builder | personal-data fields recorded as `{ field, changed: true }` with no values |
+
+## 6. Integration tests — services
+
+Every read: correct rows, complete ordered relations, DTO shape, and **draft/archived excluded for public contexts**.
+
+| Service | Key assertions |
+|---|---|
+| `startups.getBySlug` | full graph; ≤ 3 round-trips on a miss (NFR-01); unknown/draft/archived → `NotFoundError`; old slug → redirect result |
+| `startups.list` | every facet; combined facets; acquired excluded by default; **each sort paginates without duplicates or gaps while rows are inserted mid-pagination** |
+| `founders.getBySlug` | 3 startups incl. two stints, `joined_year DESC` |
+| `investors.getPortfolio` | distinct companies; pagination; rounds-led = 2 |
+| `batches.getStats` | count, raised sum (equity + convertible only), top 5 industries |
+| `rounds` writes | EUR conversion stored with rate/date/source; totals recomputed in-transaction; debt/grant/secondary excluded |
+| `taxonomy.getPage` | real value without copy → generated; nonexistent value → `NotFoundError`; < 5 companies → not indexable |
+| `search` | exact name first; FTS on tagline/description; trigram finds a misspelling and a diacritic-stripped query; drafts never returned |
+| lifecycle | DELETE archives; restore; hard delete refused after first publish, allowed for never-published; slug change writes a flattened redirect |
+| `privacy.eraseFounder` | founder, joins and media removed; related audit rows scrubbed; `erasure_log` row with hash only; caches expired |
+| `import` | dry-run stores rows + SHA-256; commit uses stored rows; a conflicting record created between dry-run and commit → `IMPORT_STALE`, zero rows written; > 24 h → `IMPORT_EXPIRED` |
+| caching | after a write with `revalidateTag(tag, { expire: 0 })`, the next public read returns fresh data (no stale serve) |
+
+Every write service: happy path, rollback on failure, derived fields, audit row, cache tags expired, slug conflict → `ConflictError`.
+
+## 7. Authz conformance suite *(SEC-03, NFR-10)*
+
+`src/server/services/__tests__/authz.spec.ts` — table-driven, enumerating every exported function in `src/server/services/**` and `src/server/cache/**`.
+
+```
+for each READ service function:
+  ├─ publicContext()          → excludes draft and archived fixtures
+  └─ authedContext(editor)    → includes the draft fixture
+
+for each CACHED public read (src/server/cache/**):
+  ├─ PUBLIC_READ              → excludes draft and archived fixtures
+  ├─ called with authedContext(editor) at runtime (type-cast) → throws
+  └─ called with publicContext(ip) at runtime (type-cast)     → throws
+     (the parameter type already makes both a compile error; this proves the runtime guard)
+
+for each MUTATION:
+  ├─ publicContext()          → throws ForbiddenError
+  └─ authedContext(editor)    → succeeds
+
+for each ADMIN-ONLY mutation (hard delete, slug change, users, privacy, manual FX):
+  └─ authedContext(editor)    → throws ForbiddenError
+
+registry completeness:
+  └─ every exported function appears in exactly one table → else FAIL naming it
+```
+
+`user_role` has only `admin` and `editor`; "wrong role" is tested as *editor attempting an admin-only action*.
+
+A compile-time check (`tsd` / `expectTypeOf`) asserts that a function in `src/server/cache/**` does not accept `RequestContext`.
+
+## 8. Security test matrix
+
+| ID | Test | Must observe |
+|---|---|---|
+| SEC-01 | `check-bundle-leak.ts` on built client chunks, with real secret values injected in CI | zero occurrences of any server secret value or `postgres(ql)?://` |
+| SEC-02 | Contract tests with malformed and extra-field bodies | 400 with field details; no DB query issued |
+| SEC-03 | Authz conformance suite (§7) | green, registry complete |
+| SEC-04 | `auth.spec.ts` (Playwright) + contract tests | session cookie host-only on admin origin, httpOnly, Secure; login without completed 2FA → 401 on writes; recovery code works once; revoked session rejected immediately; cross-origin POST (Origin: public origin, and a foreign origin) → 403; `text/plain` body → 415; write path on public origin → 404 |
+| **SEC-05** | `safe-fetch.spec.ts` **and** `POST /prefill` contract tests: `http://…` (non-https); `https://localhost`; `https://127.0.0.1`; `https://[::1]`; `https://[::ffff:127.0.0.1]`; `https://10.0.0.1`; `https://172.16.0.1`; `https://192.168.1.1`; `https://100.64.0.1`; `https://169.254.169.254/latest/meta-data/`; `https://2130706433/`; **DNS rebinding mock** (first resolution public, second private); a public page **redirecting** to a private IP; a 4-hop redirect chain; a 50 MB body; a 30 s hanging server; **a public page whose `og:image` points at `169.254.169.254`**; **a Firecrawl mock returning a private-IP image URL** | every one rejected; the page-level cases return `400 UNSAFE_URL`; the image-level cases return `200` with the image omitted and a warning; no socket to a private address is ever opened (asserted via the connect hook) |
+| SEC-06 | `media.spec.ts`: PNG renamed `.jpg`; 6 MB file; **5 MB PNG declaring 50,000 × 50,000 px**; EXIF-GPS JPEG; SVG with script and external `href`; polyglot GIF/JS | sniffed type wins; 413; **422 IMAGE_TOO_LARGE without exhausting memory**; EXIF absent; SVG rasterized with no external fetch; polyglot rejected |
+| SEC-07 | `import.spec.ts`: 1,001 rows; a `=HYPERLINK(…)` cell; commit without dry-run; commit after a conflicting insert; commit after 24 h; failure on row 15 of 20 | cap enforced; value stored raw and neutralized only in `export.csv`; 409s as specified; zero rows persisted on rollback |
+| SEC-08 | Rate-limit integration tests + WAF config review | 21st login attempt / 15 min from one IP → 429; 6th failure for one email → delayed response, **account still usable from another IP after the delay** (no lockout); 21st prefill / hour → 429; Upstash unavailable → login and prefill fail closed; WAF rules exist for `/api/v1/*` |
+| SEC-09 | `headers.spec.ts` against a production build, both origins | admin: nonce CSP with `strict-dynamic`, nonce differs per request; public: SRI hash CSP (or documented fallback) and page still statically cached; HSTS **without** `preload`; nosniff; Referrer-Policy; X-Frame-Options DENY |
+| SEC-10 | Role tests | `app_rw`: `CREATE TABLE` denied, `UPDATE audit_log` denied; `retention`: can only touch `audit_log`; `backup_ro`: writes denied; migrator credential absent from Vercel env listing (checklist) |
+| SEC-11 | `audit.spec.ts` + retention job test | every mutation audited; personal fields have no values; job nulls IPs > 90 days and deletes rows > 12 months; app code has no UPDATE/DELETE path on `audit_log` |
+| SEC-12 | Forced 500 | no stack, SQL, table name or internal id in body; detail in Sentry with PII scrubbed |
+| SEC-13 | CI | frozen lockfile; install scripts only for allowlisted packages; minimum-release-age setting present; audit exceptions all carry owner + expiry |
+| SEC-14 | `ip.spec.ts` | spoofed `X-Forwarded-For` does not change the rate-limit key or the audited IP |
+| SEC-15 | Contract tests | 21st anonymous page → `PAGINATION_DEPTH`; `limit=500` clamped to 48; public DTOs contain no admin-only fields; `robots.txt` disallows `/api/` |
+| SEC-16 | Deployment checklist | preview DB is a branch of the seed branch (no production rows); preview URL requires Vercel Authentication; production secrets not present in Preview scope |
+| SEC-17 | `restore-test.yml` (monthly) | latest R2 dump decrypts, restores into a scratch branch, row counts match production within the dump window; failure alerts |
+| SEC-18 | Launch checklist + `privacy.eraseFounder` integration test | `/privacy` live and reviewed; erasure test above green; seed contains no photos without a recorded licence/source |
+| SEC-19 | Post-launch checklist | preload submitted only after 3 months of stable HTTPS on all subdomains |
+
+## 9. API contract tests
+
+For every endpoint in [API.md](./API.md): success shape, status, envelope and each failure mode listed there.
+
+- Unknown slug → 404; **draft/archived → 404 for public callers**; **old slug → 301 with correct `Location`**.
+- **Nonexistent facet value → 404**; thin facet → `isIndexable: false`.
+- Write paths on the public origin → 404; cross-origin writes → 403.
+- Cursor: tampered → 400; sort mismatch → 400; depth > 20 anonymous → 400; results stable under concurrent inserts for each sort.
+- Rounds: `amountUsd` in a create body → 400 (unknown/forbidden field); undisclosed with amount → 422; EUR create → response carries server-computed fx fields.
+- Every response validated against a Zod schema generated from the documented DTO, so a field rename fails the test, not the frontend.
+
+## 10. E2E scenarios (Playwright)
+
+| Spec | Scenario | Asserts |
+|---|---|---|
+| `graph.spec.ts` | `/` → company → founder → *earlier* startup → investor → portfolio → another company → batch → cohort | every hop by click, no dead ends |
+| `admin-crud.spec.ts` | login + TOTP on `admin.localhost` → create startup with 2 founders (1 inline), 3 investors, a batch, a EUR round → publish | appears on `/`, its page, both founder pages, investor page, `/news` with original currency shown |
+| `lifecycle.spec.ts` | archive a published company → visit publicly → restore → admin changes slug → visit old URL | 404 while archived; visible after re-publish; old URL 301s to new |
+| `auth.spec.ts` | first login forces 2FA enrollment; recovery code; session revocation; cross-origin form POST from the public origin | enrollment required; code single-use; revoked immediately; POST rejected |
+| `access-control.spec.ts` | anonymous `/admin` on admin host; `/admin` on public host; draft slug publicly; editor on `/admin/users` | redirect to login; 404; 404; 403 |
+| `editorial.spec.ts` | prefill with a mocked page; prefill with `169.254.169.254`; prefill page with hostile `og:image`; CSV dry-run then commit; CSV commit after a conflicting edit | populates as draft with staged images; rejected; image omitted with warning; commit succeeds; `IMPORT_STALE` shown |
+| `categories.spec.ts` | real facet, thin facet, random slug | renders; `noindex` meta present; 404 |
+| `search.spec.ts` | ⌘K; misspelling; diacritic-free query for "Zürich"-based company; type tabs | keyboard-only; found; found; filtered |
+| `responsive.spec.ts` | 360 / 768 / 1280 px on `/`, company, admin form | no horizontal scroll; filters in sheet on mobile |
+
+## 11. Non-functional testing
+
+| Requirement | Method | Target |
+|---|---|---|
+| NFR-01 | Lighthouse on preview; query-count assertion | LCP ≤ 2.0 s p75; cached TTFB ≤ 400 ms; suggest p95 ≤ 150 ms; ≤ 3 round-trips per miss |
+| NFR-02 | Integration: two sequential public reads from different simulated visitors hit the same cache entry; write then read is fresh | one DB execution for both reads; no stale read after write |
+| NFR-03 | Rich-results test; sitemap diff after publish; thin facet check | valid JSON-LD; new entity in sitemap; thin facets `noindex` and absent from sitemap |
+| NFR-04 | axe in CI; manual keyboard + screen reader pass | zero violations; initials avatars labelled |
+| NFR-05/06 | `responsive.spec.ts`; manual theme pass | no horizontal scroll; both themes legible |
+| NFR-07 | Force an error on preview | Sentry event with request id and no PII |
+| NFR-08 | Integration | exact bigint sums; FX recorded per round; atomic multi-table writes |
+| **NFR-11** | Vercel usage dashboard on preview after a full crawl of the seed site; code review | **image transformations = 0**; grid links use hover prefetch; OG served from Blob; budget alerts configured |
+| NFR-12 | Launch checklist | Vercel Pro and Neon Launch active before public launch |
+
+## 12. Ops tests
+
+| Job | Test |
+|---|---|
+| `migrate.yml` | runs only on `main` in the protected environment; a deliberately failing migration stops promotion; the previous deployment still works against the migrated schema (expand-only check) |
+| `backup.yml` | produces an encrypted object in R2; object is not readable without the offline key |
+| `restore-test.yml` | see SEC-17 |
+| retention | see SEC-11 |
+| media GC | stale staging and unreferenced assets deleted; attached assets untouched |
+| FX import | ECB feed mock imported; weekend/holiday dates resolve to the prior business day |
+
+## 13. Pre-release manual checklist
+
+- [ ] Add a company end to end in **under 90 seconds**, timed (PRD §10)
+- [ ] Keyboard-only pass over `/`, a company page, `/search`, the admin startup form
+- [ ] Screen-reader spot check on a company page and the admin form
+- [ ] Light and dark on every page type; 360 px phone pass
+- [ ] Draft and archived companies invisible in a private window
+- [ ] Published company appears in `/news`, `/`, its category pages and the sitemap
+- [ ] Prefill on five real company URLs — record what it gets wrong
+- [ ] Import the fixture CSV; commit; verify drafts
+- [ ] 404 and 500 pages
+- [ ] Revoke a session; confirm immediate logout
+- [ ] Restore the latest backup into a scratch branch by hand once
+- [ ] Budget alerts fire on a test threshold
+- [ ] `/privacy` and `/about` reviewed
+
+## 14. CI pipeline
+
+```
+install (--frozen-lockfile) ─▶ lint ─▶ typecheck ─▶ unit
+   ─▶ integration + authz + contract (Postgres 17 service)
+   ─▶ build ─▶ check:leak ─▶ pnpm audit (with exceptions)
+   ─▶ e2e (from Phase 18) ─▶ axe (from Phase 20) ─▶ coverage gate
+
+separate workflows: migrate.yml (main, protected) · backup.yml · restore-test.yml · maintenance.yml
+```
+
+## 15. Coverage
+
+- ≥ 80% lines on `src/server/services`; 100% of mutations and cached reads in the authz suite.
+- Excluded: generated migrations, `src/components/ui/*`, config, seed scripts.
+- Coverage is a floor. The authz and SSRF suites are worth more than the percentage.
+
+## 16. Bug severity
+
+| Severity | Definition | Response |
+|---|---|---|
+| **S1** | Data leak (draft/archived visible publicly, draft in shared cache), authz bypass, SSRF, CSRF, credential or secret exposure, unrecoverable data loss | Stop work; fix; add regression test |
+| S2 | Wrong data (incorrect totals or FX, wrong founder link), broken write path, failed backup | Fix before the next phase |
+| S3 | Broken layout, missing empty state, a11y violation | Fix within the phase |
+| S4 | Cosmetic, copy | Backlog |
+
+Every S1/S2 fix ships with the regression test that should have caught it.
+
+## 17. Definition of done (per phase)
+
+A phase in [../TODO.md](../TODO.md) is done when every box is checked, its EXIT condition holds, tests for its requirement IDs exist and pass, CI is green, and no S1/S2 bug is open against it.
+
+---
+
+**See also:** [PRD.md](./PRD.md) · [SRS.md](./SRS.md) · [API.md](./API.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [../TODO.md](../TODO.md)
