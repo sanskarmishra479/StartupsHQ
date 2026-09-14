@@ -155,13 +155,14 @@ A compile-time check (`tsd` / `expectTypeOf`) asserts that a function in `src/se
 | SEC-10 | Role tests | `app_rw`: `CREATE TABLE` denied, `UPDATE audit_log` denied; `retention`: can only touch `audit_log`; `backup_ro`: writes denied; migrator credential absent from Vercel env listing (checklist) |
 | SEC-11 | `audit.spec.ts` + retention job test | every mutation audited; personal fields have no values; job nulls IPs > 90 days and deletes rows > 12 months; app code has no UPDATE/DELETE path on `audit_log` |
 | SEC-12 | Forced 500 | no stack, SQL, table name or internal id in body; detail in Sentry with PII scrubbed |
-| SEC-13 | CI | frozen lockfile; install scripts only for allowlisted packages; minimum-release-age setting present; audit exceptions all carry owner + expiry |
+| SEC-13 | CI + `pnpm-workspace.yaml` review | frozen lockfile; `strictDepBuilds: true` and only `allowBuilds`-listed packages run build scripts; `minimumReleaseAge: 4320`; audit exceptions all carry owner + expiry |
 | SEC-14 | `ip.spec.ts` | spoofed `X-Forwarded-For` does not change the rate-limit key or the audited IP |
 | SEC-15 | Contract tests | 21st anonymous page → `PAGINATION_DEPTH`; `limit=500` clamped to 48; public DTOs contain no admin-only fields; `robots.txt` disallows `/api/` |
 | SEC-16 | Deployment checklist | preview DB is a branch of the seed branch (no production rows); preview URL requires Vercel Authentication; production secrets not present in Preview scope |
 | SEC-17 | `restore-test.yml` (monthly) | latest R2 dump decrypts, restores into a scratch branch, row counts match production within the dump window; failure alerts |
 | SEC-18 | Launch checklist + `privacy.eraseFounder` integration test | `/privacy` live and reviewed; erasure test above green; seed contains no photos without a recorded licence/source |
 | SEC-19 | Post-launch checklist | preload submitted only after 3 months of stable HTTPS on all subdomains |
+| SEC-20 | Monthly repo-settings check via `gh api` + workflow lint in CI | secret scanning, push protection, Dependabot alerts and security updates enabled; `main` protected with required checks; every `uses:` pinned to a 40-character SHA; every workflow declares `permissions`; no `pull_request_target`; fork workflows require approval; `production` environment has a required reviewer; no `.env`, dump or watermark file tracked by git |
 
 ## 9. API contract tests
 

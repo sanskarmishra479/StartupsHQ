@@ -28,7 +28,7 @@ This document is the authority on **requirements**: schema, authorization semant
 | Layer | Technology | Notes |
 |---|---|---|
 | Runtime | Node 24 (local: v24.14.1) | Next.js 16 requires ≥ 20.9 |
-| Package manager | pnpm 10 | Lockfile committed; hardened per SEC-13 |
+| Package manager | pnpm 12 (12.4.1 via corepack, pinned in `packageManager`) | Lockfile committed; hardened per SEC-13 |
 | Framework | **Next.js 16**, App Router, React 19.2 | Cache Components (`'use cache'`), `proxy.ts` (not `middleware.ts`), Turbopack |
 | Language | TypeScript 5, `strict: true` | `noUncheckedIndexedAccess` on |
 | DB | PostgreSQL 17 — Docker local, Neon prod | Extensions: `pg_trgm`, `unaccent` (via an IMMUTABLE wrapper, DM-13) |
@@ -45,7 +45,7 @@ This document is the authority on **requirements**: schema, authorization semant
 | Error monitoring | Sentry, PII scrubbing on | Required before launch (NFR-07) |
 | Lint/format | Biome | |
 | Tests | Vitest (unit/integration) + Playwright (e2e) | |
-| CI / ops jobs | GitHub Actions | CI, migrations, nightly backups, retention, media GC |
+| CI / ops jobs | GitHub Actions | CI, migrations, nightly backups, retention, media GC — free standard runners on the public repo (ADR-021) |
 | Hosting | Vercel + Neon + Vercel Blob; Cloudflare R2 for backups | Free tiers for development only — see NFR-12 |
 
 ## 3. Architecture
@@ -89,6 +89,7 @@ startupsHQ/
 ├── pnpm-workspace.yaml           supply-chain settings (SEC-13)
 ├── biome.json · vitest.config.ts · playwright.config.ts
 ├── .env.example
+├── SECURITY.md                   private vulnerability reporting (SEC-20)
 ├── .github/workflows/
 │   ├── ci.yml                    lint → typecheck → tests → build → leak scan → audit
 │   ├── migrate.yml               migrations on merge to main, protected env (ADR-015)
@@ -370,13 +371,14 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 | SEC-10 | **DB roles.** `app_rw`: DML on content tables, INSERT-only on `audit_log`, no DDL. `migrator`: DDL, used **only** by the GitHub Actions migration workflow in a protected environment — never present in Vercel. `retention`: UPDATE/DELETE on `audit_log` only. `backup_ro`: read-only. TLS via the Neon pooler. | Test: DDL as `app_rw` → permission denied |
 | SEC-11 | **Audit.** Append-only for the app; personal-data fields recorded by name only; `ip` nulled after 90 days; rows deleted after 12 months by the `retention` job. | Unit + retention job test |
 | SEC-12 | Error responses never leak stack traces, SQL, table names or internal ids. Server logs and Sentry carry detail, with PII scrubbing. | Unit tests |
-| SEC-13 | **Supply chain.** `pnpm install --frozen-lockfile` in CI; dependency lifecycle scripts disabled except an explicit allowlist (e.g. `sharp`); a minimum release age of ~3 days before new dependency versions can be installed (exact pnpm setting verified in Phase 0); Dependabot; `pnpm audit` gate fails on high severity **except** listed advisories with an owner and expiry date. | CI |
+| SEC-13 | **Supply chain.** `pnpm install --frozen-lockfile` in CI. In `pnpm-workspace.yaml`: `strictDepBuilds: true` (pnpm default — install fails on unreviewed dependency build scripts) with an explicit `allowBuilds` allowlist (e.g. `sharp: true`; `onlyBuiltDependencies` is deprecated since pnpm 11); `dangerouslyAllowAllBuilds: false`; `minimumReleaseAge: 4320` (minutes = 3 days; pnpm's default is 1440) with `minimumReleaseAgeExclude` only for audited exceptions. Dependabot security updates on; `pnpm audit` gate fails on high severity **except** listed advisories with an owner and expiry date. | CI + config review |
 | SEC-14 | **Client IP** is taken only from the platform's trusted source (`ipAddress()` from `@vercel/functions`), in one helper. `X-Forwarded-For` supplied by clients is never trusted. | Unit test |
 | SEC-15 | **Anti-scraping.** Signed cursors; max 20-page depth for anonymous pagination; `limit` ≤ 48; public DTOs contain only fields the UI renders; WAF bot challenge (SEC-08); `robots.txt` disallows `/api/`; a private list of watermark phrasings in a few published descriptions (factually correct wording — never fake records, per PRD principle 5) to detect bulk copies. | Contract tests + review |
 | SEC-16 | **Deploy isolation.** Preview deployments use a Neon branch created from a **seed-data branch**, never from production; Vercel Authentication is enabled on previews; production secrets are scoped to the Production environment only. Migrations never run in the Vercel build step (ADR-015). | Deployment checklist |
 | SEC-17 | **Backups.** Neon point-in-time restore ≥ 7 days (Launch plan) in production; nightly `pg_dump` by `backup_ro`, encrypted with `age`, uploaded to Cloudflare R2 with 30-day lifecycle; monthly automated restore test into a scratch branch comparing row counts; failure alerts. | `restore-test.yml` |
 | SEC-18 | **Personal data.** `/privacy` notice at launch; requests (access, correction, erasure, objection) handled within 30 days via a published email address and `/admin/privacy`; erasure per FR-410; founder photos only when founder-supplied or licensed — otherwise initials avatar; `startup_founders.source_url` records where each attribution came from. Reviewed by legal counsel before launch. | Launch checklist |
 | SEC-19 | **HSTS preload** is enabled only after ≥ 3 months of stable HTTPS on every subdomain (preload removal takes months). | Post-launch checklist |
+| SEC-20 | **Public repository hygiene** (ADR-021). No security property depends on the code, schema or docs being secret. GitHub secret scanning and push protection on; Dependabot alerts and security updates on; branch protection on `main` requiring CI; Actions restricted to GitHub-owned and verified actions, every `uses:` pinned to a full commit SHA; every workflow declares `permissions:` (default `contents: read`); fork pull request workflows require approval and never receive secrets; `pull_request_target` is never used; migrator/backup/retention/R2 secrets exist only as environment secrets in a `production` environment with a required reviewer; private operational material (watermark list, real `.env` values, backups, legal correspondence) is never committed; `SECURITY.md` points to GitHub private vulnerability reporting. | Repo settings check + workflow lint |
 
 ## 8. Non-functional requirements
 
@@ -423,7 +425,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 
 1. All `FR-1xx` public pages render correctly from seeded data; the PRD §8 traversal completes with no dead ends; old slugs 301.
 2. All `FR-2xx` admin screens work on the admin origin only; drafts and archived records are invisible publicly (verified by test).
-3. `SEC-01` … `SEC-18` satisfied, each with its named verification passing (SEC-19 is post-launch).
+3. `SEC-01` … `SEC-18` and `SEC-20` satisfied, each with its named verification passing (SEC-19 is post-launch).
 4. Authz conformance suite covers every mutation and every cached public read; service-layer coverage ≥ 80%.
 5. Playwright graph-traversal, admin-CRUD, 2FA, CSRF and access-control specs green.
 6. Lighthouse ≥ 95 performance / 100 SEO on a company page; LCP ≤ 2.0 s p75 mobile; image transformations = 0.

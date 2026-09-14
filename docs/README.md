@@ -9,7 +9,7 @@ Read in this order. Each document answers a different question; they cross-refer
 | [PRD.md](./PRD.md) | **What** are we building and **why**? | Scope, users, success metrics | Deciding whether to build something |
 | [SRS.md](./SRS.md) | **What exactly** must be true? | Schema, authorization, security (`SEC-*`), performance and cost budgets (`NFR-*`) | Writing any code |
 | [API.md](./API.md) | **What is the contract?** | Endpoint paths, params, DTO shapes, status and error codes | Building or consuming an endpoint |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | **How is it put together, and why?** | Layering, lifecycles, caching, ops, cost model, Decision Records (ADR-001 … ADR-020) | Before changing anything structural |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | **How is it put together, and why?** | Layering, lifecycles, caching, ops, cost model, Decision Records (ADR-001 … ADR-021) | Before changing anything structural |
 | [TEST_PLAN.md](./TEST_PLAN.md) | **How do we know it works?** | Quality gates, fixtures, security test matrix | Writing tests; judging whether a phase is done |
 | [../TODO.md](../TODO.md) | **What's next?** | Build sequence, backend before frontend | Every working session |
 
@@ -60,6 +60,7 @@ Each ADR carries a **Revisit if** line naming the condition that should reopen i
 |---|---|
 | 2026-09-12 | v1: PRD, SRS, API, ARCHITECTURE (ADR-001…011), TEST_PLAN, TODO |
 | 2026-09-14 | v2: full review against Next.js 16, Vercel, Neon, Upstash and Better Auth docs. Added ADR-012…020; cache-safe public reads; admin subdomain + split CSP; SSRF rebinding and image-URL defence; mandatory 2FA; CSRF origin checks; trusted client IP; archive-not-delete; off-provider backups; migrations out of the build; FX conversion and "total raised" definition; slug redirects; CSV commit integrity; media staging + GC; facet 404/noindex rules; GDPR handling; supply-chain hardening; paid tiers at launch; doc inconsistencies fixed |
+| 2026-09-14 | Repository made public: ADR-021 and SEC-20 (public-repo hygiene). pnpm 12 supply-chain settings confirmed from pnpm docs (`strictDepBuilds`, `allowBuilds`, `minimumReleaseAge: 4320`), resolving the Phase 0 `[?]` |
 
 ## Conventions
 

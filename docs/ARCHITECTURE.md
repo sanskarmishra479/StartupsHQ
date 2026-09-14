@@ -246,6 +246,7 @@ Costs scale with **edge requests, cache misses and edits** — not with visitors
 | Junk URLs | Random facet slugs mint cache entries | 404 unless the facet value exists |
 | Database | Always-on compute | Neon scale-to-zero kept on; caching keeps it idle |
 | Storage | Orphaned uploads accumulate | Weekly media GC |
+| CI minutes | Private repo on GitHub Free: 2,000 min/month, then blocked | Public repo: standard runners free (ADR-021) |
 
 ---
 
@@ -356,7 +357,7 @@ Each ADR is immutable once accepted. To change a decision, add a new ADR that su
 **Revisit if:** Next.js ships stable hash-based CSP, or nonces stop forcing dynamic rendering.
 
 ### ADR-015 — Migrations run in GitHub Actions, not in the Vercel build
-**Status:** Accepted · 2026-09-14 · *Supersedes the "migrations in the build step" line of SRS v1 §9*
+**Status:** Accepted · 2026-09-14 · *Supersedes the "migrations in the build step" line of SRS v1 §9* · *Depends on ADR-021*
 
 **Context.** Running migrations in the build places a DDL-capable credential in every build environment, including PR builds and dependency install scripts, and lets a migration run before a deploy that then fails.
 **Decision.** `migrate.yml` runs on merge to `main` in a protected GitHub environment with required approval, before the production deployment is promoted. Vercel never holds the migrator credential. Migrations are backward-compatible (expand → deploy → contract). Previews branch from a seed-data branch, never production.
@@ -397,6 +398,14 @@ Each ADR is immutable once accepted. To change a decision, add a new ADR that su
 **Context.** Vercel Hobby is non-commercial only and caps image transformations and edge requests; Neon Free offers a 6-hour restore window and 0.5 GB; Upstash Free offers 500K commands/month.
 **Decision.** Build on free tiers. Before public launch: Vercel Pro with spend management, Neon Launch, budget alerts at 50/80/100% on every paid service, monthly cost review.
 **Consequences.** (+) Zero cost until launch; no surprise pauses after launch. (−) A fixed monthly base cost from launch day.
+
+### ADR-021 — Public source repository
+**Status:** Accepted · 2026-09-14 · *Enables ADR-015*
+
+**Context.** On a private repository, GitHub Free/Pro/Team do not offer required reviewers, and environment secrets need a paid plan — so ADR-015's protected migration environment could not exist, and private-repo CI minutes are capped at 2,000/month. The owner made the repository public.
+**Decision.** Source code and documentation are public. On public repositories GitHub Free provides environments with required reviewers, environment secrets, branch protection, secret scanning with push protection, and free standard-runner Actions minutes. The threat model assumes attackers can read the code, schema, endpoint list and these documents; **no security property may depend on their secrecy**. Repository hygiene per SEC-20.
+**Consequences.** (+) ADR-015 works at no cost; free CI; free secret scanning. (−) The authorization model and schema are visible to attackers — acceptable because enforcement is structural (ADR-003, ADR-013, ADR-014), but it raises the stakes of SEC-20. Fork pull requests become an attack path into CI, hence SHA-pinned actions, read-only default permissions, approval for fork workflows and no `pull_request_target`. Competitors can read the product plan. Without a LICENSE the code is all-rights-reserved but still copyable in practice. The curated data — the actual moat — never lives in the repository, and neither does private operational material (watermark list, real `.env` values, backups, legal correspondence).
+**Revisit if:** the repository must become private again — then required reviewers need GitHub Enterprise, or ADR-015 falls back to manually triggered migrations with repository secrets.
 
 ---
 

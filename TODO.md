@@ -35,12 +35,14 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Goal:** a wired repo that lints, typechecks, tests and refuses to build on a security regression.
 
-- [ ] `git init` (you), `.gitignore` (`.env*`, `.next`, `node_modules`, coverage, `*.local`)
+- [x] `git init`, `.gitignore`, docs committed and pushed to the public repo `sanskarmishra479/StartupsHQ`
+- [x] pnpm 12.4.1 installed via corepack
+- [ ] **Docker Compose v2 (you):** `sudo apt install -y docker-compose-v2` — the daemon works but the `docker compose` plugin is missing
 - [ ] `pnpm create next-app@latest` — **Next.js 16**, App Router, TypeScript, Tailwind v4, `src/`, Biome
 - [ ] `next.config.ts`: `cacheComponents: true`; `images.unoptimized: true` (ADR-012); headers stub
 - [ ] `tsconfig.json`: `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, alias `@/*`
 - [ ] `pnpm add server-only`
-- [ ] **Supply chain (SEC-13):** CI installs with `--frozen-lockfile`; dependency lifecycle scripts allowlisted (e.g. `sharp` only); `[?]` confirm the exact pnpm setting name/unit for a ~3-day minimum release age and add it; `audit-exceptions.json` with owner + expiry per entry
+- [ ] **Supply chain (SEC-13):** `"packageManager": "pnpm@12.4.1"`; `pnpm-workspace.yaml` with `strictDepBuilds: true`, `allowBuilds: { sharp: true }`, `dangerouslyAllowAllBuilds: false`, `minimumReleaseAge: 4320`; CI installs with `--frozen-lockfile`; `audit-exceptions.json` with owner + expiry per entry
 - [ ] `docker-compose.yml`: Postgres 17, named volume, healthcheck
 - [ ] Local two-origin dev: `localhost:3000` (public) and `admin.localhost:3000` (admin)
 - [ ] `.env.example` with every Vercel variable from SRS §9 — no real values; GitHub-only secrets documented separately
@@ -53,7 +55,17 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] Scripts: `dev build start lint typecheck test test:e2e test:cov db:generate db:migrate db:studio db:seed seed:admin check:leak recompute:derived`
 - [ ] `.github/workflows/ci.yml`: install → lint → typecheck → unit → integration (Postgres 17 service) → build → `check:leak` → audit
 - [ ] `.github/workflows/migrate.yml` skeleton (runs on `main`, `production` protected environment, required reviewer) **(ADR-015)**
-- [ ] Dependabot config
+- [ ] Dependabot config (`npm` and `github-actions` ecosystems)
+- [ ] **Public repo hardening (SEC-20, ADR-021):**
+  - [x] secret scanning + push protection enabled (2026-09-14)
+  - [x] Dependabot alerts + security updates enabled (2026-09-14)
+  - [ ] branch protection on `main` requiring CI — **decide (you):** PR-only, or direct pushes with admin bypass while solo
+  - [ ] Actions restricted to GitHub-owned + verified actions; every `uses:` pinned by full commit SHA
+  - [ ] every workflow declares `permissions:` (default `contents: read`); no `pull_request_target`
+  - [ ] fork pull request workflows require approval
+  - [ ] `SECURITY.md` + GitHub private vulnerability reporting enabled
+  - [ ] `production` environment with you as required reviewer — created in Phase 22 when secrets exist
+- [ ] `[?]` **LICENSE (you decide):** none = all rights reserved (code visible but not legally reusable), or an open-source license
 
 **EXIT:** `docker compose up -d db` healthy · `pnpm typecheck && pnpm lint && pnpm build && pnpm check:leak` pass · CI green on first push · both local origins resolve.
 
