@@ -18,6 +18,7 @@ import {
 import { ensureTestUsers } from "../testing/users";
 import * as batchWrites from "./batch-writes";
 import * as batches from "./batches";
+import * as categoryWrites from "./category-writes";
 import * as founderWrites from "./founder-writes";
 import * as founders from "./founders";
 import * as investorWrites from "./investor-writes";
@@ -27,6 +28,7 @@ import * as relationWrites from "./relation-writes";
 import * as roundWrites from "./round-writes";
 import * as rounds from "./rounds";
 import * as search from "./search";
+import * as slugWrites from "./slug-writes";
 import * as startupWrites from "./startup-writes";
 import * as startups from "./startups";
 import * as stats from "./stats";
@@ -333,6 +335,16 @@ const REGISTRY: AuthzRegistry = {
     kind: "mutation",
     invoke: (ctx) =>
       relationWrites.setIndustries(ctx, NIL_UUID, { industries: [] }),
+  },
+  "services/category-writes.ts#updateCopy": {
+    kind: "mutation",
+    invoke: (ctx) =>
+      categoryWrites.updateCopy(ctx, "industries", "anything-at-all", {}),
+  },
+  "services/slug-writes.ts#changeSlug": {
+    kind: "admin-mutation",
+    invoke: (ctx) =>
+      slugWrites.changeSlug(ctx, "startup", NIL_UUID, { slug: "anything" }),
   },
   "services/lifecycle.ts#hardDelete": {
     kind: "admin-mutation",

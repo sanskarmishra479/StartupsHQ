@@ -2,31 +2,23 @@ import "server-only";
 
 import { and, asc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
-import {
-  enumToSlug,
-  slugToEnum,
-  stageLabel,
-  workTypeLabel,
-} from "../../lib/labels";
+import { enumToSlug, stageLabel, workTypeLabel } from "../../lib/labels";
 import { isSlug } from "../../lib/slug";
 import type { ReadContext } from "../auth/context";
 import { visibilityFilter } from "../auth/visibility";
-import { type Database, getDb } from "../db/client";
+import { getDb } from "../db/client";
+import { resolveFacet, TAXONOMY_KIND } from "../db/queries/facets";
 import {
   industries,
   locations,
-  stageEnum,
   startupIndustries,
   startups,
   taxonomyPages,
-  workTypeEnum,
 } from "../db/schema";
 import {
   type CategoryDirectory,
-  type CategoryKind,
   type CategoryPage,
   isCategoryKind,
-  type ResolvedFacet,
   toCategoryEntry,
   toCategoryPage,
 } from "../dto/category";
@@ -38,90 +30,6 @@ import { count, list, type StartupFilters } from "./startups";
 // not exist, or has no company visible to the caller, is a 404.
 
 export type CategoryPageInput = Readonly<{ cursor?: string; limit?: number }>;
-
-const TAXONOMY_KIND = {
-  industries: "industry",
-  stages: "stage",
-  "work-type": "work_type",
-  cities: "city",
-  countries: "country",
-} as const satisfies Record<CategoryKind, string>;
-
-type Facet = ResolvedFacet & Readonly<{ filters: StartupFilters }>;
-
-/** The facet value behind a category URL, or null when it does not exist. */
-async function resolveFacet(
-  db: Database,
-  kind: CategoryKind,
-  slug: string,
-): Promise<Facet | null> {
-  switch (kind) {
-    case "industries": {
-      const [row] = await db
-        .select({ name: industries.name, iconUrl: industries.iconUrl })
-        .from(industries)
-        .where(eq(industries.slug, slug))
-        .limit(1);
-      return row
-        ? {
-            heading: `${row.name} startups`,
-            iconUrl: row.iconUrl,
-            filters: { industry: [slug] },
-          }
-        : null;
-    }
-    case "stages": {
-      const stage = slugToEnum(slug, stageEnum.enumValues);
-      if (!stage) return null;
-      return {
-        heading: `${stageLabel(stage) ?? stage} startups`,
-        iconUrl: null,
-        filters: { stage: [stage] },
-      };
-    }
-    case "work-type": {
-      const workType = slugToEnum(slug, workTypeEnum.enumValues);
-      if (!workType) return null;
-      return {
-        heading: `${workTypeLabel(workType) ?? workType} startups`,
-        iconUrl: null,
-        filters: { workType: [workType] },
-      };
-    }
-    case "cities": {
-      const [row] = await db
-        .select({ city: locations.city })
-        .from(locations)
-        .where(and(eq(locations.slug, slug), isNotNull(locations.city)))
-        .limit(1);
-      return row?.city
-        ? {
-            heading: `Startups in ${row.city}`,
-            iconUrl: null,
-            filters: { city: [slug] },
-          }
-        : null;
-    }
-    case "countries": {
-      // A country page exists for each country-level location row (city is null).
-      const [row] = await db
-        .select({
-          country: locations.country,
-          countryCode: locations.countryCode,
-        })
-        .from(locations)
-        .where(and(eq(locations.slug, slug), isNull(locations.city)))
-        .limit(1);
-      return row
-        ? {
-            heading: `Startups in ${row.country}`,
-            iconUrl: null,
-            filters: { country: row.countryCode },
-          }
-        : null;
-    }
-  }
-}
 
 /**
  * One category page: copy (or generated copy), indexability and the first page of companies.

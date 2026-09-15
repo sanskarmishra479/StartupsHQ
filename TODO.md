@@ -161,7 +161,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] `src/server/validation/*` — Zod per entity (`z.strictObject`); `founded_year` range; rounds reject client-supplied `amountUsd`/fx **(SEC-02)** — `shared.ts`, one module per entity plus `relations.ts`; services parse their own input
 - [x] Create / update / publish (sets `first_published_at`, triggers OG render hook) / unpublish for all five entities — `services/{startup,founder,investor,batch,round}-writes.ts` + `services/lifecycle.ts`; the OG render hook lands with OG rendering (FR-111)
 - [x] **Lifecycle:** DELETE ⇒ archive; restore; hard delete admin-only and only when never published **(FR-407)** — invalid transitions 422; round status changes recompute totals in-transaction
-- [ ] **Slug change** admin-only with flattened `slug_redirects` **(FR-409)**
+- [x] **Slug change** admin-only with flattened `slug_redirects` **(FR-409)** — `services/slug-writes.ts`; redirects point at the entity id, so chains are flat by construction; moving back to an own old slug removes that redirect; founder slug changes audited by name only · category copy upsert (FR-205, API §8.4) in `services/category-writes.ts`, 404 for facet values that do not exist
 - [x] Relationship writes incl. founder stints and `source_url` — `services/relation-writes.ts`; nested `POST /startups` creates links and rounds in one transaction via `db/writes/{relations,rounds}.ts`
 - [x] Inline draft creation from pickers **(FR-204)** — every `create` makes a draft
 - [x] **FX conversion** on round write; admin manual-rate path **(FR-406)** — client amounts/rates rejected as unknown fields; manual rate refused when an ECB rate exists for the date
