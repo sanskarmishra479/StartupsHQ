@@ -1,6 +1,6 @@
 # startupsHQ — API Contract
 
-**Status:** Specified, not yet implemented · **Version:** v1 (draft 2) · **Last updated:** 2026-09-14
+**Status:** Specified, not yet implemented · **Version:** v1 (draft 2) · **Last updated:** 2026-09-15
 **Requirements authority:** [SRS.md](./SRS.md) · This document is the authority on **paths, params, DTO shapes and status codes**.
 
 > **How to read this document.** It is written **design-first**: it specifies the contract handlers must satisfy, not code that exists. TODO Phase 8 implements it; Phase 12 verifies every shape against the real handlers via the contract tests in [TEST_PLAN.md](./TEST_PLAN.md) §9. If implementation diverges, both this document and the handler are suspect — resolve deliberately.
@@ -13,7 +13,7 @@
 
 | Aspect | Rule |
 |---|---|
-| Origins | **Reads:** `https://startupshq.com/api/v1`. **Writes, auth, admin reads:** `https://admin.startupshq.com/api/v1`. Write paths on the public origin return `404` (ADR-014). Domain TBD. |
+| Origins | **Reads:** `https://startupshq.com/api/v1`. **Writes, auth, admin reads:** `https://admin.startupshq.com/api/v1`. Write paths on the public origin return `404` (ADR-014). Domain TBD. Host routing (`src/proxy.ts`): on any host other than the admin origin — including preview hostnames — `/admin/*`, `/api/auth/*` and every non-`GET`/`HEAD` `/api/v1/*` return `404` (JSON for `/api/*`). The admin origin serves only `/admin/*`, `/api/auth/*` and `/api/v1/*`: `/` redirects to `/admin`, `/admin/*` without a session cookie redirects to `/admin/login`, anything else is `404`, and every response carries `X-Robots-Tag: noindex, nofollow`. |
 | Transport | HTTPS only. JSON bodies; `POST /media` and `POST /import/dry-run` are `multipart/form-data`. |
 | Casing | **JSON `camelCase`; database `snake_case`.** DTO mappers are the only translation point. |
 | Money | Integer **whole US dollars** (`30000000` = $30M), never float or formatted string. Non-USD rounds also carry `currency`, `amountOriginal`, `fxRate`, `fxRateDate`. Formatting is the client's job. |

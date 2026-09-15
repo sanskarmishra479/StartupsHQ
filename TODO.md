@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 5 complete — Phase 6 (authentication) next · **Last updated:** 2026-09-14
+**Status:** Phase 6 complete — Phase 7 (API read endpoints) next · **Last updated:** 2026-09-15
 
 ---
 
@@ -187,12 +187,12 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] Transactional email provider: invites, password reset, 2FA reset notices **(FR-201, FR-208)** — **Resend** (decided 2026-09-15), `lib/email.ts`; password reset wired; invites and 2FA-reset notices land with the users service
 - [x] `getSessionContext()` → `RequestContext`; unverifiable or 2FA-incomplete ⇒ `publicContext()` — `auth/session.ts` (`getSessionStatus` also reports `enrollment-required`)
 - [x] `requireEditor()` / `requireAdmin()` handler helpers (layer 2)
-- [ ] **`src/proxy.ts`** (not `middleware.ts`) — host routing: `/admin/*`, `/api/auth/*`, non-GET `/api/v1/*` only on the admin host; session gate for `/admin/*` (layer 1)
-- [ ] `/api/auth/[...all]` on the admin origin
+- [x] **`src/proxy.ts`** (not `middleware.ts`) — host routing: `/admin/*`, `/api/auth/*`, non-GET `/api/v1/*` only on the admin host; session gate for `/admin/*` (layer 1) — rules in pure `src/lib/host-routing.ts`: any host other than the admin host is public (fails closed, incl. preview hosts and missing config); paths decoded and lowercased before matching; the admin host serves only `/admin`, `/api/auth`, `/api/v1` and `/_next` (`/` → `/admin`, else 404) with `X-Robots-Tag: noindex`
+- [x] `/api/auth/[...all]` on the admin origin — the auth instance is created on first request, so builds need no auth secrets
 - [x] `scripts/seed-admin.ts` — first admin from CLI args, password hashed by Better Auth, 2FA enrollment forced on first login (moved from Phase 2) — `pnpm seed:admin --email … --name …`; the password comes only from `SEED_ADMIN_PASSWORD`, never an argument
-- [ ] Tests: enrollment forced; recovery code single-use; login without 2FA cannot write; revoked session rejected; no lockout from another IP; editor refused admin-only action; admin paths 404 on public host — all passing except **admin paths 404 on public host**, which needs `proxy.ts` (6b)
+- [x] Tests: enrollment forced; recovery code single-use; login without 2FA cannot write; revoked session rejected; no lockout from another IP; editor refused admin-only action; admin paths 404 on public host — `auth-flow.test.ts`, `login-limits.test.ts`, `src/proxy.test.ts`
 
-**EXIT:** three independent layers verified **(SEC-03.5)** · `seed-admin.ts` → working login with 2FA · cookie-prefix spike recorded.
+**EXIT:** ✅ three independent layers verified **(SEC-03.5)** — layer 1 `src/proxy.test.ts`, layer 2 `auth-flow.test.ts` (`requireEditor`/`requireAdmin`), layer 3 the authz suite · `seed-admin.ts` → working login with 2FA (smoke-run against the test database; the same `createCredentialUser` drives the 2FA sign-in tests) · cookie-prefix spike recorded (SRS SEC-04). Deferred to the users service (FR-208): session rotation on role change; invite and 2FA-reset emails.
 
 ---
 

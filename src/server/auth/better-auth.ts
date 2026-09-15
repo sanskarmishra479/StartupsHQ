@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { twoFactor } from "better-auth/plugins/two-factor";
+import { cookiePrefixFor } from "../../lib/auth-cookie";
 import { type Database, getDb } from "../db/client";
 import {
   accounts,
@@ -136,7 +137,7 @@ function createAuth(env: Env, db: Database) {
       // bucket, and our own limiter uses clientIp() (SEC-14).
       ipAddress: { ipAddressHeaders: ["x-real-ip"] },
       useSecureCookies: false,
-      cookiePrefix: https ? "__Host-startupshq" : "startupshq",
+      cookiePrefix: cookiePrefixFor(https),
       defaultCookieAttributes: {
         secure: https,
         httpOnly: true,
