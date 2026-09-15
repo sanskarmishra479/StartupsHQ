@@ -2,11 +2,18 @@ import "server-only";
 
 import { eq } from "drizzle-orm";
 import type { ReadContext } from "../auth/context";
-import { assertEditor } from "../auth/guards";
+import { assertAdmin, assertEditor } from "../auth/guards";
 import { auditDiff, writeAudit } from "../db/audit";
 import { runMutation } from "../db/mutation";
 import { startups } from "../db/schema";
 import { attachMedia } from "../db/writes/media";
+import {
+  insertBatchLink,
+  insertFounderLink,
+  insertInvestorLink,
+  replaceIndustries,
+} from "../db/writes/relations";
+import { insertRound } from "../db/writes/rounds";
 import { claimSlug } from "../db/writes/slugs";
 import { startupTags } from "../db/writes/tags";
 import { NotFoundError, UnprocessableError } from "../lib/errors";
@@ -34,16 +41,33 @@ const written = {
   status: startups.status,
 };
 
-/** Creates a draft. The slug comes from the name unless a free one is given (FR-403). */
+/** Omits empty arrays from an audit diff, so a create records only the links it made. */
+const nonEmpty = <T>(items: readonly T[] | undefined) =>
+  items && items.length > 0 ? items : undefined;
+
+/**
+ * Creates a draft, with any industries, founders, backers, batches and rounds in the same
+ * transaction: if one link or round is invalid, nothing is created. The slug comes from the name
+ * unless a free one is given (FR-403).
+ */
 export async function create(
   ctx: ReadContext,
   input: CreateStartupInput,
 ): Promise<WriteResult> {
   assertEditor(ctx);
-  const { slug: requestedSlug, ...fields } = parseInput(
-    createStartupSchema,
-    input,
-  );
+  const {
+    slug: requestedSlug,
+    industries,
+    founders = [],
+    investors = [],
+    batchIds = [],
+    rounds = [],
+    ...fields
+  } = parseInput(createStartupSchema, input);
+  if (rounds.some((round) => round.manualFx)) assertAdmin(ctx);
+  if (new Set(batchIds).size !== batchIds.length) {
+    throw new UnprocessableError("A batch is listed twice.");
+  }
 
   return runMutation(async (tx, tags) => {
     const slug = await claimSlug(tx, "startup", {
@@ -75,8 +99,22 @@ export async function create(
       entityType: "startup",
       entityId: row.id,
       action: "create",
-      diff: auditDiff(null, { ...fields, slug }),
+      diff: auditDiff(null, {
+        ...fields,
+        slug,
+        industries: nonEmpty(industries),
+        founders: nonEmpty(founders),
+        investors: nonEmpty(investors),
+        batchIds: nonEmpty(batchIds),
+      }),
     });
+
+    if (industries) await replaceIndustries(tx, row.id, industries);
+    for (const link of founders) await insertFounderLink(tx, row.id, link);
+    for (const link of investors) await insertInvestorLink(tx, row.id, link);
+    for (const batchId of batchIds) await insertBatchLink(tx, row.id, batchId);
+    for (const round of rounds) await insertRound(tx, ctx, row.id, round);
+
     for (const tag of await startupTags(tx, [row.id])) tags.add(tag);
     return row;
   });

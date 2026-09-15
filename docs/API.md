@@ -437,9 +437,12 @@ For each of `startups`, `founders`, `investors`, `batches`, `rounds`:
 
 | Method | Path | Body |
 |---|---|---|
-| `POST` / `DELETE` | `/startups/{id}/founders` | `{ founderId, role, isCurrent, joinedYear, leftYear, sortOrder, sourceUrl }` |
-| `POST` / `DELETE` | `/startups/{id}/investors` | `{ investorId, roundId?, isLead, amountUsd? }` |
-| `POST` / `DELETE` | `/startups/{id}/batches` | `{ batchId }` |
+| `POST` | `/startups/{id}/founders` | `{ founderId, role, isCurrent?, joinedYear?, leftYear?, sortOrder?, sourceUrl? }` → `201 { id }`. `isCurrent` defaults to true unless `leftYear` is given |
+| `DELETE` | `/startups/{id}/founders/{linkId}` | Removes one stint → `204` |
+| `POST` | `/startups/{id}/investors` | `{ investorId, roundId?, isLead?, amountUsd? }` → `201 { id }`. `roundId` must be one of this startup's rounds (`422`) |
+| `DELETE` | `/startups/{id}/investors/{linkId}` | → `204` |
+| `POST` | `/startups/{id}/batches` | `{ batchId }` → `204` |
+| `DELETE` | `/startups/{id}/batches/{batchId}` | → `204` |
 | `PUT` | `/startups/{id}/industries` | `{ industries: [ { id, isPrimary } ] }` — replaces the set; > 1 primary → `422` |
 
 Duplicate link → `409` (enforced by `NULLS NOT DISTINCT` uniqueness). `leftYear < joinedYear` → `422`.

@@ -4,13 +4,12 @@ import { eq } from "drizzle-orm";
 import type { ReadContext } from "../auth/context";
 import { assertAdmin, assertEditor } from "../auth/guards";
 import { auditDiff, writeAudit } from "../db/audit";
-import type { Transaction } from "../db/client";
 import { recomputeStartupDerived } from "../db/derived";
 import { runMutation } from "../db/mutation";
-import { fundingRounds, investments, startups } from "../db/schema";
+import { fundingRounds, startups } from "../db/schema";
+import { insertRound, resolveAmounts, withFxSource } from "../db/writes/rounds";
 import { roundTags } from "../db/writes/tags";
 import { NotFoundError, UnprocessableError } from "../lib/errors";
-import { convertRound, convertToWholeUsd, findRate } from "../lib/fx";
 import {
   type CreateRoundInput,
   createRoundSchema,
@@ -19,33 +18,14 @@ import {
 } from "../validation/rounds";
 import { isUuid, parseInput } from "../validation/shared";
 
-// Funding round writes (docs/API.md §8.1, FR-404, FR-406). Editors enter the original currency
-// and amount; the server converts to whole USD from fx_rates. Only an admin may enter a manual
-// rate, and only for a currency with no ECB rate for that date. Totals are recomputed in the
-// same transaction.
+// Funding round writes (docs/API.md §8.1, FR-404, FR-406). Conversion and inserts live in
+// db/writes/rounds.ts, shared with nested startup creation. Totals are recomputed in the same
+// transaction as any change to a round.
 
 export type RoundWriteResult = Readonly<{
   id: string;
   status: "draft" | "published" | "archived";
 }>;
-
-type ManualFx = Readonly<{ rate: string; sourceNote: string }>;
-
-type AmountInput = Readonly<{
-  currency: string;
-  announcedOn: string;
-  isUndisclosed: boolean;
-  amountOriginal: string | null | undefined;
-  manualFx: ManualFx | undefined;
-}>;
-
-type StoredAmounts = {
-  amountOriginal: string | null;
-  amountUsd: number | null;
-  fxRate: string | null;
-  fxRateDate: string | null;
-  fxSource: "ecb" | "manual" | null;
-};
 
 const AMOUNT_FIELDS = [
   "announcedOn",
@@ -54,86 +34,14 @@ const AMOUNT_FIELDS = [
   "amountOriginal",
 ] as const;
 
-async function resolveAmounts(
-  tx: Transaction,
-  input: AmountInput,
-): Promise<StoredAmounts> {
-  if (input.isUndisclosed) {
-    if (input.amountOriginal != null || input.manualFx) {
-      throw new UnprocessableError(
-        "An undisclosed round has no amount or exchange rate.",
-      );
-    }
-    return {
-      amountOriginal: null,
-      amountUsd: null,
-      fxRate: null,
-      fxRateDate: null,
-      fxSource: null,
-    };
-  }
-  if (input.amountOriginal == null) {
-    throw new UnprocessableError(
-      "Enter the amount, or mark the round as undisclosed.",
-    );
-  }
-
-  if (!input.manualFx) {
-    return {
-      amountOriginal: input.amountOriginal,
-      ...(await convertRound(tx, {
-        currency: input.currency,
-        amountOriginal: input.amountOriginal,
-        announcedOn: input.announcedOn,
-      })),
-    };
-  }
-
-  if (input.currency === "USD") {
-    throw new UnprocessableError("A USD round needs no exchange rate.");
-  }
-  if (await findRate(tx, input.currency, input.announcedOn)) {
-    throw new UnprocessableError(
-      `There is an ECB rate for ${input.currency} on that date, and it is used automatically.`,
-    );
-  }
-  return {
-    amountOriginal: input.amountOriginal,
-    amountUsd: convertToWholeUsd(input.amountOriginal, input.manualFx.rate),
-    fxRate: input.manualFx.rate,
-    fxRateDate: input.announcedOn,
-    fxSource: "manual",
-  };
-}
-
-/** A manual rate keeps its source next to the round (FR-406). */
-function withFxSource(
-  notes: string | null | undefined,
-  manualFx: ManualFx | undefined,
-): string | null | undefined {
-  if (!manualFx) return notes;
-  return [notes, `FX rate source: ${manualFx.sourceNote}`]
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 /** Creates a draft round, with its participating investors. */
 export async function create(
   ctx: ReadContext,
   input: CreateRoundInput,
 ): Promise<RoundWriteResult> {
   assertEditor(ctx);
-  const {
-    startupId,
-    investors: participants = [],
-    manualFx,
-    ...fields
-  } = parseInput(createRoundSchema, input);
-  if (manualFx) assertAdmin(ctx);
-  const investorIds = participants.map((participant) => participant.investorId);
-  if (new Set(investorIds).size !== investorIds.length) {
-    throw new UnprocessableError("An investor is listed twice.");
-  }
+  const { startupId, ...round } = parseInput(createRoundSchema, input);
+  if (round.manualFx) assertAdmin(ctx);
 
   return runMutation(async (tx, tags) => {
     const [startup] = await tx
@@ -143,51 +51,7 @@ export async function create(
       .for("update");
     if (!startup) throw new UnprocessableError("That startup does not exist.");
 
-    const isUndisclosed = fields.isUndisclosed ?? false;
-    const currency = fields.currency ?? "USD";
-    const values = {
-      ...fields,
-      currency,
-      isUndisclosed,
-      notes: withFxSource(fields.notes, manualFx),
-      ...(await resolveAmounts(tx, {
-        currency,
-        announcedOn: fields.announcedOn,
-        isUndisclosed,
-        amountOriginal: fields.amountOriginal,
-        manualFx,
-      })),
-    };
-
-    const [row] = await tx
-      .insert(fundingRounds)
-      .values({
-        ...values,
-        startupId,
-        status: "draft",
-        createdBy: ctx.actor.id,
-        updatedBy: ctx.actor.id,
-      })
-      .returning({ id: fundingRounds.id, status: fundingRounds.status });
-    if (!row) throw new Error("Insert returned no row.");
-
-    if (participants.length > 0) {
-      await tx.insert(investments).values(
-        participants.map((participant) => ({
-          startupId,
-          investorId: participant.investorId,
-          roundId: row.id,
-          isLead: participant.isLead ?? false,
-        })),
-      );
-    }
-
-    await writeAudit(tx, ctx, {
-      entityType: "round",
-      entityId: row.id,
-      action: "create",
-      diff: auditDiff(null, { ...values, startupId, investors: participants }),
-    });
+    const row = await insertRound(tx, ctx, startupId, round);
     for (const tag of await roundTags(tx, [row.id])) tags.add(tag);
     return row;
   });
@@ -221,7 +85,6 @@ export async function update(
       AMOUNT_FIELDS.some((field) => changes[field] !== undefined);
 
     if (touchesAmount) {
-      const isUndisclosed = changes.isUndisclosed ?? current.isUndisclosed;
       const amountOriginal =
         changes.amountOriginal !== undefined
           ? changes.amountOriginal
@@ -233,7 +96,7 @@ export async function update(
         await resolveAmounts(tx, {
           currency: changes.currency ?? current.currency,
           announcedOn: changes.announcedOn ?? current.announcedOn,
-          isUndisclosed,
+          isUndisclosed: changes.isUndisclosed ?? current.isUndisclosed,
           amountOriginal,
           manualFx,
         }),

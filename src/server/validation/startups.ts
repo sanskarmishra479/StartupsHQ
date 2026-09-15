@@ -3,6 +3,12 @@ import "server-only";
 import { z } from "zod";
 import { headcountBandEnum, stageEnum, workTypeEnum } from "../db/schema";
 import {
+  founderLinkSchema,
+  industryLinksSchema,
+  investorLinkSchema,
+} from "./relations";
+import { createRoundSchema } from "./rounds";
+import {
   httpsUrl,
   optionalText,
   slugInput,
@@ -38,12 +44,25 @@ const fields = {
   coverAssetId: z.uuid().nullable().optional(),
 };
 
+/** A new startup with its links and rounds, created in one transaction. */
 export const createStartupSchema = z.strictObject({
   ...fields,
   slug: slugInput.optional(),
+  industries: industryLinksSchema.shape.industries.optional(),
+  founders: z.array(founderLinkSchema).max(50).optional(),
+  /** Backers whose round is unknown; round participants go in `rounds[].investors`. */
+  investors: z
+    .array(investorLinkSchema.omit({ roundId: true }))
+    .max(50)
+    .optional(),
+  batchIds: z.array(z.uuid()).max(20).optional(),
+  rounds: z
+    .array(createRoundSchema.omit({ startupId: true }))
+    .max(50)
+    .optional(),
 });
 
-/** Partial; `slug` changes only through the admin slug action (FR-409). */
+/** Partial; `slug` changes only through the admin slug action (FR-409), links through §8.3. */
 export const updateStartupSchema = z.strictObject(fields).partial();
 
 export type CreateStartupInput = z.input<typeof createStartupSchema>;

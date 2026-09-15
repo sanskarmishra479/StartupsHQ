@@ -23,6 +23,7 @@ import * as founders from "./founders";
 import * as investorWrites from "./investor-writes";
 import * as investors from "./investors";
 import * as lifecycle from "./lifecycle";
+import * as relationWrites from "./relation-writes";
 import * as roundWrites from "./round-writes";
 import * as rounds from "./rounds";
 import * as search from "./search";
@@ -303,6 +304,35 @@ const REGISTRY: AuthzRegistry = {
   "services/round-writes.ts#update": {
     kind: "mutation",
     invoke: (ctx) => roundWrites.update(ctx, NIL_UUID, {}),
+  },
+  "services/relation-writes.ts#addFounder": {
+    kind: "mutation",
+    invoke: (ctx) => relationWrites.addFounder(ctx, NIL_UUID, {} as never),
+  },
+  "services/relation-writes.ts#removeFounder": {
+    kind: "mutation",
+    invoke: (ctx) => relationWrites.removeFounder(ctx, NIL_UUID, NIL_UUID),
+  },
+  "services/relation-writes.ts#addInvestor": {
+    kind: "mutation",
+    invoke: (ctx) => relationWrites.addInvestor(ctx, NIL_UUID, {} as never),
+  },
+  "services/relation-writes.ts#removeInvestor": {
+    kind: "mutation",
+    invoke: (ctx) => relationWrites.removeInvestor(ctx, NIL_UUID, NIL_UUID),
+  },
+  "services/relation-writes.ts#addBatch": {
+    kind: "mutation",
+    invoke: (ctx) => relationWrites.addBatch(ctx, NIL_UUID, {} as never),
+  },
+  "services/relation-writes.ts#removeBatch": {
+    kind: "mutation",
+    invoke: (ctx) => relationWrites.removeBatch(ctx, NIL_UUID, NIL_UUID),
+  },
+  "services/relation-writes.ts#setIndustries": {
+    kind: "mutation",
+    invoke: (ctx) =>
+      relationWrites.setIndustries(ctx, NIL_UUID, { industries: [] }),
   },
   "services/lifecycle.ts#hardDelete": {
     kind: "admin-mutation",

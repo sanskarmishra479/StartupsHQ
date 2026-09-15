@@ -158,11 +158,11 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 5 · Service layer — writes
 
-- [ ] `src/server/validation/*` — Zod per entity (`z.strictObject`); `founded_year` range; rounds reject client-supplied `amountUsd`/fx **(SEC-02)** · 5a: `shared.ts` + startups; services parse their own input · 5b: founders, investors, batches, rounds · relationship bodies remain
+- [x] `src/server/validation/*` — Zod per entity (`z.strictObject`); `founded_year` range; rounds reject client-supplied `amountUsd`/fx **(SEC-02)** — `shared.ts`, one module per entity plus `relations.ts`; services parse their own input
 - [x] Create / update / publish (sets `first_published_at`, triggers OG render hook) / unpublish for all five entities — `services/{startup,founder,investor,batch,round}-writes.ts` + `services/lifecycle.ts`; the OG render hook lands with OG rendering (FR-111)
 - [x] **Lifecycle:** DELETE ⇒ archive; restore; hard delete admin-only and only when never published **(FR-407)** — invalid transitions 422; round status changes recompute totals in-transaction
 - [ ] **Slug change** admin-only with flattened `slug_redirects` **(FR-409)**
-- [ ] Relationship writes incl. founder stints and `source_url`
+- [x] Relationship writes incl. founder stints and `source_url` — `services/relation-writes.ts`; nested `POST /startups` creates links and rounds in one transaction via `db/writes/{relations,rounds}.ts`
 - [x] Inline draft creation from pickers **(FR-204)** — every `create` makes a draft
 - [x] **FX conversion** on round write; admin manual-rate path **(FR-406)** — client amounts/rates rejected as unknown fields; manual rate refused when an ECB rate exists for the date
 - [x] Derived totals (`total_raised_usd` equity+convertible, `total_debt_usd`, `latest_round_id`) in-transaction **(FR-404)** — on round update and on every round status change
