@@ -158,17 +158,17 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 5 · Service layer — writes
 
-- [ ] `src/server/validation/*` — Zod per entity (`z.strictObject`); `founded_year` range; rounds reject client-supplied `amountUsd`/fx **(SEC-02)**
-- [ ] Create / update / publish (sets `first_published_at`, triggers OG render hook) / unpublish for all five entities
-- [ ] **Lifecycle:** DELETE ⇒ archive; restore; hard delete admin-only and only when never published **(FR-407)**
+- [ ] `src/server/validation/*` — Zod per entity (`z.strictObject`); `founded_year` range; rounds reject client-supplied `amountUsd`/fx **(SEC-02)** · 5a: `shared.ts` + startups; services parse their own input
+- [ ] Create / update / publish (sets `first_published_at`, triggers OG render hook) / unpublish for all five entities · 5a: startup create/update; publish/unpublish for all five in `services/lifecycle.ts`; the OG render hook lands with OG rendering (FR-111)
+- [x] **Lifecycle:** DELETE ⇒ archive; restore; hard delete admin-only and only when never published **(FR-407)** — invalid transitions 422; round status changes recompute totals in-transaction
 - [ ] **Slug change** admin-only with flattened `slug_redirects` **(FR-409)**
 - [ ] Relationship writes incl. founder stints and `source_url`
 - [ ] Inline draft creation from pickers **(FR-204)**
 - [ ] **FX conversion** on round write; admin manual-rate path **(FR-406)**
 - [ ] Derived totals (`total_raised_usd` equity+convertible, `total_debt_usd`, `latest_round_id`) in-transaction **(FR-404)**
-- [ ] `services/audit.ts` — in-transaction, personal fields by name only **(FR-405, SEC-11)**
+- [x] `services/audit.ts` — in-transaction, personal fields by name only **(FR-405, SEC-11)** — lives in `db/audit.ts` (`writeAudit`, `auditDiff`) because it runs inside other services' transactions; an admin audit read belongs to the dashboard phase
 - [ ] `services/privacy.ts` — request records; `eraseFounder` with audit scrub + `erasure_log` **(FR-410)**. The app role cannot UPDATE `audit_log`, so the scrub goes through a narrow `SECURITY DEFINER` function that can only redact one entity's audit rows
-- [ ] `revalidateTag(tag, { expire: 0 })` for every affected tag, incl. neighbours **(NFR-02)**
+- [x] `revalidateTag(tag, { expire: 0 })` for every affected tag, incl. neighbours **(NFR-02)** — `db/mutation.ts` expires only after commit; `db/writes/tags.ts` collects neighbours per entity (old slugs, acquired companies, founders, investors, batches)
 - [ ] `scripts/recompute-derived.ts`
 - [ ] Tests per TEST_PLAN §6 (writes, lifecycle, privacy, caching freshness)
 - [ ] Authz suite covers **100%** of mutations incl. admin-only table

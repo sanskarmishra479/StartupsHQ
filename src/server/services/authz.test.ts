@@ -15,11 +15,14 @@ import {
   collectExportedFunctions,
   defineAuthzSuite,
 } from "../testing/authz";
+import { ensureTestUsers } from "../testing/users";
 import * as batches from "./batches";
 import * as founders from "./founders";
 import * as investors from "./investors";
+import * as lifecycle from "./lifecycle";
 import * as rounds from "./rounds";
 import * as search from "./search";
+import * as startupWrites from "./startup-writes";
 import * as startups from "./startups";
 import * as stats from "./stats";
 import * as taxonomy from "./taxonomy";
@@ -31,8 +34,13 @@ import * as taxonomy from "./taxonomy";
 // fixtures, whose draft and archived records must stay invisible to public contexts.
 
 beforeAll(async () => {
+  await ensureTestUsers();
   await seed(getDb());
 });
+
+/** Mutations are exercised against a record that does not exist: authorized callers get past
+ *  the guard and fail with NotFound or a validation error, so no fixture data changes. */
+const NIL_UUID = "00000000-0000-4000-8000-000000000000";
 
 afterAll(async () => {
   await closeDb();
@@ -234,6 +242,35 @@ const REGISTRY: AuthzRegistry = {
         startup: { slug: "solstice-grid" },
       })),
     seesDraft: includesHiddenRound,
+  },
+  // ── Mutations: editors and admins; hard delete is admins only ────────────────────────────
+  "services/startup-writes.ts#create": {
+    kind: "mutation",
+    invoke: (ctx) => startupWrites.create(ctx, {} as never),
+  },
+  "services/startup-writes.ts#update": {
+    kind: "mutation",
+    invoke: (ctx) => startupWrites.update(ctx, NIL_UUID, {}),
+  },
+  "services/lifecycle.ts#publish": {
+    kind: "mutation",
+    invoke: (ctx) => lifecycle.publish(ctx, "startup", NIL_UUID),
+  },
+  "services/lifecycle.ts#unpublish": {
+    kind: "mutation",
+    invoke: (ctx) => lifecycle.unpublish(ctx, "startup", NIL_UUID),
+  },
+  "services/lifecycle.ts#archive": {
+    kind: "mutation",
+    invoke: (ctx) => lifecycle.archive(ctx, "startup", NIL_UUID),
+  },
+  "services/lifecycle.ts#restore": {
+    kind: "mutation",
+    invoke: (ctx) => lifecycle.restore(ctx, "startup", NIL_UUID),
+  },
+  "services/lifecycle.ts#hardDelete": {
+    kind: "admin-mutation",
+    invoke: (ctx) => lifecycle.hardDelete(ctx, "startup", NIL_UUID),
   },
 };
 
