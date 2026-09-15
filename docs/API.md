@@ -421,11 +421,11 @@ For each of `startups`, `founders`, `investors`, `batches`, `rounds`:
   "investors": [ { "investorId": "4d5c…", "isLead": true } ],
   "batchIds":  [ "9e8d…" ],
   "rounds":    [ { "roundType": "series_a", "announcedOn": "2026-09-10", "currency": "EUR",
-                   "amountOriginal": 20000000, "sourceUrl": "https://…", "investorIds": [ "4d5c…" ] } ]
+                   "amountOriginal": 20000000, "sourceUrl": "https://…", "investors": [ { "investorId": "4d5c…", "isLead": true } ] } ]
 }
 ```
 
-- Rounds never accept `amountUsd`, `fxRate` or `fxRateDate` — the server computes them (FR-406). A currency without an ECB rate returns `422` unless an **admin** supplies `"manualFx": { "rate": 0.00061, "sourceNote": "…" }`.
+- Rounds never accept `amountUsd`, `fxRate` or `fxRateDate` — the server computes them (FR-406). A currency without an ECB rate returns `422` unless an **admin** supplies `"manualFx": { "rate": 0.00061, "sourceNote": "…" }`. A manual rate is refused (`422`) when an ECB rate exists within 7 days before `announcedOn`; its source note is appended to the round's `notes`. `amountOriginal` is an integer or a decimal string with at most 2 decimals. `PATCH /rounds/{id}` does not change participants; use §8.3.
 - `isUndisclosed: true` with any amount → `422`.
 - Referenced media assets must be `staging` or already attached to this entity; they become `attached` on commit.
 

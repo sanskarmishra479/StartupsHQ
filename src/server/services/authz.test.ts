@@ -16,10 +16,14 @@ import {
   defineAuthzSuite,
 } from "../testing/authz";
 import { ensureTestUsers } from "../testing/users";
+import * as batchWrites from "./batch-writes";
 import * as batches from "./batches";
+import * as founderWrites from "./founder-writes";
 import * as founders from "./founders";
+import * as investorWrites from "./investor-writes";
 import * as investors from "./investors";
 import * as lifecycle from "./lifecycle";
+import * as roundWrites from "./round-writes";
 import * as rounds from "./rounds";
 import * as search from "./search";
 import * as startupWrites from "./startup-writes";
@@ -267,6 +271,38 @@ const REGISTRY: AuthzRegistry = {
   "services/lifecycle.ts#restore": {
     kind: "mutation",
     invoke: (ctx) => lifecycle.restore(ctx, "startup", NIL_UUID),
+  },
+  "services/founder-writes.ts#create": {
+    kind: "mutation",
+    invoke: (ctx) => founderWrites.create(ctx, {} as never),
+  },
+  "services/founder-writes.ts#update": {
+    kind: "mutation",
+    invoke: (ctx) => founderWrites.update(ctx, NIL_UUID, {}),
+  },
+  "services/investor-writes.ts#create": {
+    kind: "mutation",
+    invoke: (ctx) => investorWrites.create(ctx, {} as never),
+  },
+  "services/investor-writes.ts#update": {
+    kind: "mutation",
+    invoke: (ctx) => investorWrites.update(ctx, NIL_UUID, {}),
+  },
+  "services/batch-writes.ts#create": {
+    kind: "mutation",
+    invoke: (ctx) => batchWrites.create(ctx, {} as never),
+  },
+  "services/batch-writes.ts#update": {
+    kind: "mutation",
+    invoke: (ctx) => batchWrites.update(ctx, NIL_UUID, {}),
+  },
+  "services/round-writes.ts#create": {
+    kind: "mutation",
+    invoke: (ctx) => roundWrites.create(ctx, {} as never),
+  },
+  "services/round-writes.ts#update": {
+    kind: "mutation",
+    invoke: (ctx) => roundWrites.update(ctx, NIL_UUID, {}),
   },
   "services/lifecycle.ts#hardDelete": {
     kind: "admin-mutation",
