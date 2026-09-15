@@ -1,6 +1,6 @@
 # startupsHQ — API Contract
 
-**Status:** Specified, not yet implemented · **Version:** v1 (draft 2) · **Last updated:** 2026-09-15
+**Status:** Read endpoints (§6) implemented; write endpoints (§8) specified · **Version:** v1 (draft 2) · **Last updated:** 2026-09-15
 **Requirements authority:** [SRS.md](./SRS.md) · This document is the authority on **paths, params, DTO shapes and status codes**.
 
 > **How to read this document.** It is written **design-first**: it specifies the contract handlers must satisfy, not code that exists. TODO Phase 8 implements it; Phase 12 verifies every shape against the real handlers via the contract tests in [TEST_PLAN.md](./TEST_PLAN.md) §9. If implementation diverges, both this document and the handler are suspect — resolve deliberately.
@@ -22,8 +22,8 @@
 | Nulls | Unknown ⇒ `null`, always present, never omitted. |
 | Enums | Exactly the values in SRS §4.1, `snake_case`. |
 | IDs | Public reads address entities by **slug**; writes by **id** (uuid). Internal ids never appear in public read DTOs, except `rounds[].id` where needed for anchors. |
-| Old slugs | A read by a slug in `slug_redirects` returns `301` with `Location` pointing at the current slug's path. |
-| Unknown params | Unknown query params ignored. Unknown **body** fields rejected (`z.strictObject`). |
+| Old slugs | A read by a slug in `slug_redirects` returns `301` with `Location` pointing at the current slug's path. Sub-resources (`/similar`, `/portfolio`, `/rounds-led`) answer only to the current slug; an old one is `404`. |
+| Unknown params | Unknown query params ignored. Unknown **body** fields rejected (`z.strictObject`). A known query param that is malformed is `400`, and so is a single-valued param given twice (`?sort=name&sort=raised`); only the repeatable facets accept several values (at most 20). |
 
 ## 2. Authentication, authorization & CSRF
 
@@ -134,7 +134,7 @@ Rounds with `is_lead = true` for this investor. `cursor`, `limit`. Returns `News
 
 ## 6.8 `GET /batches/{slug}` *(FR-105)*
 
-Returns `Batch` with stats and first cohort page.
+Returns `Batch` with stats and first cohort page. Later cohort pages: `GET /startups?batch={slug}`.
 
 ## 6.9 `GET /rounds` — news feed *(FR-106)*
 
@@ -159,7 +159,7 @@ Entries within a kind are ordered by name, except stages and work types, which k
 - A real value with no `taxonomy_pages` row returns generated copy with `isGenerated: true`.
 - `isIndexable: false` when fewer than 5 published companies — the page renders `noindex`.
 
-Returns `CategoryPage`.
+Returns `CategoryPage`. Later company pages: `GET /startups` with the matching facet and `include_acquired=true`.
 
 ## 6.11 `GET /search` *(FR-109)*
 

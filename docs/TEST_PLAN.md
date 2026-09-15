@@ -1,6 +1,6 @@
 # startupsHQ — Test Plan
 
-**Status:** Draft v2 · **Last updated:** 2026-09-14 · Companion to [SRS.md](./SRS.md)
+**Status:** Draft v2 · **Last updated:** 2026-09-15 · Companion to [SRS.md](./SRS.md)
 
 Every `SEC-*`, `FR-*` and `NFR-*` requirement in SRS.md must have a named verification here. A requirement with no test is not implemented — only intended.
 
@@ -174,6 +174,8 @@ For every endpoint in [API.md](./API.md): success shape, status, envelope and ea
 - Cursor: tampered → 400; sort mismatch → 400; depth > 20 anonymous → 400; results stable under concurrent inserts for each sort.
 - Rounds: `amountUsd` in a create body → 400 (unknown/forbidden field); undisclosed with amount → 422; EUR create → response carries server-computed fx fields.
 - Every response validated against a Zod schema generated from the documented DTO, so a field rename fails the test, not the frontend.
+
+Reads: `src/app/api/v1/read-endpoints.test.ts` calls each route handler as Next.js does and validates bodies against strict schemas in `src/server/testing/contract.ts`, so an undocumented field — including any admin-only one — fails (SEC-15). Cursor stability is checked by publishing a company between two page requests for each sort. Wrapper behaviour (SEC-12 forced 500, SEC-14 spoofed headers, envelopes) is unit-tested in `src/server/http/handler.test.ts`.
 
 ## 10. E2E scenarios (Playwright)
 

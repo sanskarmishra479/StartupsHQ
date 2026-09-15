@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 6 complete — Phase 7 (API read endpoints) next · **Last updated:** 2026-09-15
+**Status:** Phase 7 complete — Phase 8 (API write & admin endpoints) next · **Last updated:** 2026-09-15
 
 ---
 
@@ -198,14 +198,14 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 7 · API — read endpoints  *(API.md §6)*
 
-- [ ] Shared handler wrapper: trusted IP → Zod → ctx → service → DTO → JSON, uniform error mapping **(SEC-12)**
-- [ ] All read endpoints in API.md §6 on the public origin
-- [ ] 301 for old slugs; 404 for unknown/draft/archived/nonexistent facet values
-- [ ] Signed cursors, sort match, anonymous depth ≤ 20, `limit` ≤ 48 **(SEC-15)**
-- [ ] `robots.txt` disallows `/api/`
-- [ ] Contract tests per TEST_PLAN §9 (reads)
+- [x] Shared handler wrapper: trusted IP → Zod → ctx → service → DTO → JSON, uniform error mapping **(SEC-12)** — `src/server/http/handler.ts` (`publicRead`); query schemas in `src/server/validation/queries.ts`. Reads never look at cookies, so they are anonymous on both origins; admin reads that include drafts come with Phase 8
+- [x] All read endpoints in API.md §6 on the public origin — `src/app/api/v1/**/route.ts`. Slug detail pages, similar, categories and unfiltered first pages go through `src/server/cache`; filtered, later and search pages call services with `publicContext(ip)`
+- [x] 301 for old slugs; 404 for unknown/draft/archived/nonexistent facet values
+- [x] Signed cursors, sort match, anonymous depth ≤ 20, `limit` ≤ 48 **(SEC-15)**
+- [x] `robots.txt` disallows `/api/` — `src/app/robots.ts`
+- [x] Contract tests per TEST_PLAN §9 (reads) — `src/app/api/v1/read-endpoints.test.ts` against strict DTO schemas in `src/server/testing/contract.ts`; wrapper unit tests in `src/server/http/handler.test.ts`
 
-**EXIT:** every read endpoint matches API.md · no draft reachable · pagination guarantees hold for each sort.
+**EXIT:** ✅ every read endpoint matches API.md · no draft reachable · pagination guarantees hold for each sort (full walks match single pages; a company published mid-walk causes no gap or repeat).
 
 ---
 
