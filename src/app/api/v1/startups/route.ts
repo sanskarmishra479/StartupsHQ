@@ -1,5 +1,6 @@
 import { PUBLIC_READ } from "../../../../server/auth/context";
 import { getStartupsFirstPage } from "../../../../server/cache/startups";
+import { startupRoutes } from "../../../../server/http/entity-routes";
 import {
   collection,
   noneGiven,
@@ -35,3 +36,7 @@ export const GET = publicRead(startupListQuery, async ({ ctx, query }) => {
     }),
   );
 });
+
+// docs/API.md §8.1 — creates a draft, with nested relations in one transaction.
+
+export const POST = startupRoutes.create;

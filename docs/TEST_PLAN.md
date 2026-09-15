@@ -177,6 +177,8 @@ For every endpoint in [API.md](./API.md): success shape, status, envelope and ea
 
 Reads: `src/app/api/v1/read-endpoints.test.ts` calls each route handler as Next.js does and validates bodies against strict schemas in `src/server/testing/contract.ts`, so an undocumented field — including any admin-only one — fails (SEC-15). Cursor stability is checked by publishing a company between two page requests for each sort. Wrapper behaviour (SEC-12 forced 500, SEC-14 spoofed headers, envelopes) is unit-tested in `src/server/http/handler.test.ts`.
 
+Writes: `src/app/api/v1/write-endpoints.test.ts` signs in real users who completed TOTP (and one who did not) and covers, per SEC-04: the check order (origin 403 and content type 415 even with a valid session, then 401 and 403), the public-origin 404 through `proxy.ts`, malformed/unknown/oversized bodies, and each lifecycle, slug, relationship, category and privacy endpoint end to end, reading public pages back where a write changes them. Test users who wrote audit rows are kept and signed out, since audit history keeps its actor.
+
 ## 10. E2E scenarios (Playwright)
 
 | Spec | Scenario | Asserts |

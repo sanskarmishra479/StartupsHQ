@@ -1,6 +1,6 @@
 # startupsHQ — API Contract
 
-**Status:** Read endpoints (§6) implemented; write endpoints (§8) specified · **Version:** v1 (draft 2) · **Last updated:** 2026-09-15
+**Status:** Read endpoints (§6) and write endpoints §8.1–8.4 and §8.9 implemented; admin reads, media, prefill, import and users specified · **Version:** v1 (draft 2) · **Last updated:** 2026-09-15
 **Requirements authority:** [SRS.md](./SRS.md) · This document is the authority on **paths, params, DTO shapes and status codes**.
 
 > **How to read this document.** It is written **design-first**: it specifies the contract handlers must satisfy, not code that exists. TODO Phase 8 implements it; Phase 12 verifies every shape against the real handlers via the contract tests in [TEST_PLAN.md](./TEST_PLAN.md) §9. If implementation diverges, both this document and the handler are suspect — resolve deliberately.
@@ -382,7 +382,7 @@ A founder may appear more than once for the same startup with different roles or
 
 # 8. Write & admin endpoints (admin origin)
 
-All require a 2FA-completed session with role `editor` or `admin` unless noted, pass the CSRF checks in §2, and are Zod-validated with unknown fields rejected. Every successful mutation writes an `audit_log` row (personal fields by name only) and calls `revalidateTag(tag, { expire: 0 })` for affected tags.
+All require a 2FA-completed session with role `editor` or `admin` unless noted, pass the CSRF checks in §2, and are Zod-validated with unknown fields rejected. Checks run in this order, so a refusal never reveals more than the earlier check allows: `Origin` (`403`) → `Content-Type` (`415`) → session with completed 2FA (`401`) → role (`403`) → body. JSON bodies are capped at 256 KB (`413 PAYLOAD_TOO_LARGE`); malformed JSON is `400`. Responses carry `Cache-Control: private, no-store`. Every successful mutation writes an `audit_log` row (personal fields by name only) and calls `revalidateTag(tag, { expire: 0 })` for affected tags.
 
 ## 8.1 Entity lifecycle
 
@@ -399,6 +399,8 @@ For each of `startups`, `founders`, `investors`, `batches`, `rounds`:
 | `DELETE` | `/{entity}/{id}` | **Archives** (`status = archived`, `archived_at`). → `204`. Publicly 404 from then on. |
 | `POST` | `/{entity}/{id}/restore` | Archived → `draft`. |
 | `DELETE` | `/{entity}/{id}?hard=true` | **Admin only.** Permitted only when `first_published_at` is null, else `422`. Cascades a startup's rounds and join rows. |
+
+Create and update answer `{ "data": { "id", "slug", "status" } }` (rounds: `{ "id", "status" }`); publish, unpublish and restore answer `{ "data": { "id", "status" } }`. For startups, founders, investors and batches the id takes the slug's place in the path (`PATCH /startups/{id}`), since the public read by slug shares it; an id that is not a uuid is `404`.
 
 **`POST /startups`** — nested relations in one transaction:
 
@@ -443,13 +445,13 @@ For each of `startups`, `founders`, `investors`, `batches`, `rounds`:
 | `DELETE` | `/startups/{id}/investors/{linkId}` | → `204` |
 | `POST` | `/startups/{id}/batches` | `{ batchId }` → `204` |
 | `DELETE` | `/startups/{id}/batches/{batchId}` | → `204` |
-| `PUT` | `/startups/{id}/industries` | `{ industries: [ { id, isPrimary } ] }` — replaces the set; > 1 primary → `422` |
+| `PUT` | `/startups/{id}/industries` | `{ industries: [ { id, isPrimary } ] }` — replaces the set; > 1 primary → `422`; → `204` |
 
 Duplicate link → `409` (enforced by `NULLS NOT DISTINCT` uniqueness). `leftYear < joinedYear` → `422`.
 
 ## 8.4 `PATCH /categories/{kind}/{slug}` *(FR-205)*
 
-`{ heading, intro, seoTitle, seoDescription, iconUrl, sortOrder }`. Upserts `taxonomy_pages` **only for an existing facet value** — otherwise `404`.
+`{ heading, intro, seoTitle, seoDescription, iconUrl, sortOrder }`. Upserts `taxonomy_pages` **only for an existing facet value** — otherwise `404`. → `204`.
 
 ## 8.5 `POST /media` *(SEC-06, FR-408)*
 

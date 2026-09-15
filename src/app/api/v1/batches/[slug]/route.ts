@@ -1,5 +1,6 @@
 import { PUBLIC_READ } from "../../../../../server/auth/context";
 import { getBatchPage } from "../../../../../server/cache/batches";
+import { batchRoutes } from "../../../../../server/http/entity-routes";
 import {
   API_V1,
   fromLookup,
@@ -15,3 +16,8 @@ export const GET = publicRead(noQuery, async ({ params }) =>
     (slug) => `${API_V1}/batches/${slug}`,
   ),
 );
+
+// docs/API.md §8.1 — by id.
+
+export const PATCH = batchRoutes.update;
+export const DELETE = batchRoutes.remove;

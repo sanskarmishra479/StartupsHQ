@@ -1,12 +1,12 @@
 import "server-only";
 
 import { createHmac, randomInt, randomUUID } from "node:crypto";
-import { inArray, like } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { getAuth } from "../auth/better-auth";
 import type { Role } from "../auth/context";
 import { createCredentialUser } from "../auth/users";
 import { getDb } from "../db/client";
-import { users } from "../db/schema";
+import { sessions, users } from "../db/schema";
 
 // Helpers for tests that drive the real Better Auth handler with real HTTP requests.
 
@@ -29,20 +29,26 @@ export async function createTestUser(
   return { id, email };
 }
 
-/** Users created by createTestUser, with their sessions, accounts and second factors. */
+/**
+ * Users created by createTestUser, with their sessions, accounts and second factors. A user who
+ * wrote through the API has audit history, whose actor is kept (`on delete restrict`: users with
+ * history are deactivated, never deleted), so that user is only signed out.
+ */
 export async function deleteTestUsers(): Promise<void> {
   const db = getDb();
   const rows = await db
     .select({ id: users.id })
     .from(users)
     .where(like(users.email, `%@${TEST_EMAIL_DOMAIN}`));
-  if (rows.length === 0) return;
-  await db.delete(users).where(
-    inArray(
-      users.id,
-      rows.map((row) => row.id),
-    ),
-  );
+  for (const { id } of rows) {
+    try {
+      await db.delete(users).where(eq(users.id, id));
+    } catch (error) {
+      const code = (error as { cause?: { code?: unknown } }).cause?.code;
+      if (code !== "23503") throw error;
+      await db.delete(sessions).where(eq(sessions.userId, id));
+    }
+  }
 }
 
 /** A cookie jar that follows Set-Cookie headers, as a browser would. */
@@ -154,4 +160,40 @@ export function totp(base32Secret: string, at: number = Date.now()): string {
   const offset = (digest.at(-1) ?? 0) & 0x0f;
   const code = (digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
   return String(code).padStart(6, "0");
+}
+
+/**
+ * Signs a test user in with the test password and enrols TOTP, as a first sign-in must, and
+ * returns a jar holding the resulting two-factor-completed session.
+ */
+export async function signInWithTwoFactor(email: string): Promise<CookieJar> {
+  const jar = new CookieJar();
+  const signedIn = await authPost(
+    "/sign-in/email",
+    { email, password: TEST_PASSWORD },
+    { jar },
+  );
+  if (signedIn.status !== 200) {
+    throw new Error(`Sign-in failed with ${signedIn.status}.`);
+  }
+  const enabled = await authPost(
+    "/two-factor/enable",
+    { password: TEST_PASSWORD },
+    { jar },
+  );
+  const secret = enabled.body?.totpURI
+    ? new URL(String(enabled.body.totpURI)).searchParams.get("secret")
+    : null;
+  if (enabled.status !== 200 || !secret) {
+    throw new Error(`Two-factor enrolment failed with ${enabled.status}.`);
+  }
+  const verified = await authPost(
+    "/two-factor/verify-totp",
+    { code: totp(secret) },
+    { jar },
+  );
+  if (verified.status !== 200) {
+    throw new Error(`Two-factor verification failed with ${verified.status}.`);
+  }
+  return jar;
 }

@@ -81,6 +81,10 @@ export const suggestQuery = z.object({
   q: z.string().trim().min(1).max(60),
 });
 
+export const privacyRequestsQuery = z.object({
+  status: z.enum(["open", "completed", "rejected"]).optional(),
+});
+
 function isRepeatable(field: unknown): boolean {
   const inner = field instanceof z.ZodOptional ? field.unwrap() : field;
   return inner instanceof z.ZodArray;

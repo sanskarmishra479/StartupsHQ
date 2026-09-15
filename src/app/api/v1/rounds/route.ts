@@ -1,5 +1,6 @@
 import { PUBLIC_READ } from "../../../../server/auth/context";
 import { getNewsFirstPage } from "../../../../server/cache/rounds";
+import { roundRoutes } from "../../../../server/http/entity-routes";
 import {
   collection,
   noneGiven,
@@ -23,3 +24,7 @@ export const GET = publicRead(roundFeedQuery, async ({ ctx, query }) => {
     }),
   );
 });
+
+// docs/API.md §8.1 — the server computes USD amounts and FX (FR-406).
+
+export const POST = roundRoutes.create;

@@ -17,7 +17,8 @@ import { parseQuery } from "../validation/queries";
 // The shared wrapper for public read endpoints (docs/API.md §3, §4, §6; SEC-12, SEC-14).
 // Every handler runs the same steps in the same order: trusted client IP → query validation →
 // public context → service → DTO envelope, with one error mapping. Reads never look at cookies,
-// so a read is anonymous on either origin and cannot branch on identity.
+// so a read is anonymous on either origin and cannot branch on identity. Endpoints that need a
+// session use `authedRoute` (./authed.ts), which shares the results and error mapping below.
 
 export const API_V1 = "/api/v1";
 
@@ -36,26 +37,37 @@ export type ReadRequest<Query> = Readonly<{
   query: Query;
 }>;
 
-export type ReadResult =
+export type RouteResult =
   | Readonly<{ kind: "resource"; data: unknown }>
+  | Readonly<{ kind: "created"; data: unknown }>
   | Readonly<{ kind: "page"; page: Page<unknown> }>
   | Readonly<{ kind: "body"; body: unknown }>
-  | Readonly<{ kind: "redirect"; path: string }>;
+  | Readonly<{ kind: "redirect"; path: string }>
+  | Readonly<{ kind: "no-content" }>;
 
-/** `{ data }` */
-export const resource = (data: unknown): ReadResult => ({
+/** `200 { data }` */
+export const resource = (data: unknown): RouteResult => ({
   kind: "resource",
   data,
 });
 
-/** `{ data, pagination }` */
-export const collection = (page: Page<unknown>): ReadResult => ({
+/** `201 { data }` */
+export const created = (data: unknown): RouteResult => ({
+  kind: "created",
+  data,
+});
+
+/** `204` */
+export const noContent = (): RouteResult => ({ kind: "no-content" });
+
+/** `200 { data, pagination }` */
+export const collection = (page: Page<unknown>): RouteResult => ({
   kind: "page",
   page,
 });
 
 /** A DTO that already is the whole body, such as SearchResults (`{ data, meta }`). */
-export const body = (value: unknown): ReadResult => ({
+export const body = (value: unknown): RouteResult => ({
   kind: "body",
   body: value,
 });
@@ -64,7 +76,7 @@ export const body = (value: unknown): ReadResult => ({
 export function fromLookup<T>(
   result: CachedLookup<T>,
   pathFor: (slug: string) => string,
-): ReadResult {
+): RouteResult {
   if (result.kind === "found") return resource(result.value);
   if (result.kind === "redirect") {
     return { kind: "redirect", path: pathFor(result.slug) };
@@ -91,7 +103,8 @@ export function orNotFound<T>(value: T | NotFound): T {
 export const noneGiven = (values: Readonly<Record<string, unknown>>) =>
   Object.values(values).every((value) => value === undefined);
 
-function routeParams(raw: RawParams): Record<string, string> {
+/** Route params as strings; a catch-all array or a missing value is simply absent. */
+export function routeParams(raw: RawParams): Record<string, string> {
   const params: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) {
     if (typeof value === "string") params[key] = value;
@@ -99,10 +112,12 @@ function routeParams(raw: RawParams): Record<string, string> {
   return params;
 }
 
-function toResponse(result: ReadResult, url: URL): Response {
+export function toResponse(result: RouteResult, url: URL): Response {
   switch (result.kind) {
     case "resource":
       return Response.json({ data: result.data });
+    case "created":
+      return Response.json({ data: result.data }, { status: 201 });
     case "page":
       return Response.json({
         data: result.page.data,
@@ -110,6 +125,8 @@ function toResponse(result: ReadResult, url: URL): Response {
       });
     case "body":
       return Response.json(result.body);
+    case "no-content":
+      return new Response(null, { status: 204 });
     case "redirect":
       // Always a same-origin path: the slug comes from our own database.
       if (!result.path.startsWith("/") || result.path.startsWith("//")) {
@@ -135,7 +152,7 @@ export function errorResponse(error: unknown, method: string): Response {
 
 export function publicRead<S extends z.ZodObject>(
   schema: S,
-  handle: (request: ReadRequest<z.output<S>>) => Promise<ReadResult>,
+  handle: (request: ReadRequest<z.output<S>>) => Promise<RouteResult>,
 ): RouteHandler {
   return async (request, context) => {
     try {

@@ -1,5 +1,6 @@
 import { PUBLIC_READ } from "../../../../../server/auth/context";
 import { getFounderPage } from "../../../../../server/cache/founders";
+import { founderRoutes } from "../../../../../server/http/entity-routes";
 import {
   API_V1,
   fromLookup,
@@ -15,3 +16,8 @@ export const GET = publicRead(noQuery, async ({ params }) =>
     (slug) => `${API_V1}/founders/${slug}`,
   ),
 );
+
+// docs/API.md §8.1 — by id.
+
+export const PATCH = founderRoutes.update;
+export const DELETE = founderRoutes.remove;

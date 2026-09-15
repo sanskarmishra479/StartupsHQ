@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 7 complete — Phase 8 (API write & admin endpoints) next · **Last updated:** 2026-09-15
+**Status:** Phase 8 in progress — 8a (write endpoints) done; 8b (admin reads) next · **Last updated:** 2026-09-15
 
 ---
 
@@ -211,13 +211,13 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 8 · API — write & admin endpoints  *(API.md §8)*
 
-- [ ] Wrapper extension for non-GET: **origin check (403)** and **JSON content-type (415)** before anything else **(SEC-04)**
-- [ ] Entity lifecycle endpoints incl. publish/unpublish/archive/restore/hard delete
-- [ ] `POST /{entity}/{id}/slug` (admin)
-- [ ] Relationship sub-resources; taxonomy upsert for existing values only
-- [ ] Users (invite, role, reset-2fa, deactivate) · privacy requests + founder erasure
-- [ ] Status codes per API.md §4
-- [ ] Contract tests: anonymous → 401; no 2FA → 401; editor → 2xx; editor on admin-only → 403; cross-origin → 403; wrong content-type → 415; write on public origin → 404
+- [x] Wrapper extension for non-GET: **origin check (403)** and **JSON content-type (415)** before anything else **(SEC-04)** — `src/server/http/authed.ts` (`authedRoute`): origin → content type → session (401) → role (403) → JSON body capped at 256 KB (413); responses `Cache-Control: private, no-store`
+- [ ] Entity lifecycle endpoints incl. publish/unpublish/archive/restore/hard delete — **8a done:** create, update, publish, unpublish, archive, restore and hard delete for all five entities (`src/server/http/entity-routes.ts`). **8b:** admin list and admin read by id (`GET /{entity}`, `GET /{entity}/{id}`, drafts included) need new services
+- [x] `POST /{entity}/{id}/slug` (admin)
+- [x] Relationship sub-resources; taxonomy upsert for existing values only
+- [ ] Users (invite, role, reset-2fa, deactivate) · privacy requests + founder erasure — **8a done:** privacy requests and founder erasure. **8c:** the users service, with session rotation on role change and the invite and 2FA-reset emails deferred from Phase 6
+- [x] Status codes per API.md §4 — for every endpoint built so far
+- [x] Contract tests: anonymous → 401; no 2FA → 401; editor → 2xx; editor on admin-only → 403; cross-origin → 403; wrong content-type → 415; write on public origin → 404 — `src/app/api/v1/write-endpoints.test.ts`, with real sessions that completed TOTP
 
 **EXIT:** full CRUD over HTTP on the admin origin with a real 2FA session · **API contract frozen**.
 
