@@ -24,7 +24,8 @@
     "test:e2e": "playwright test",
     "check:leak": "tsx scripts/check-bundle-leak.ts",
     "db:seed": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts",
-    "db:seed:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts --test"
+    "db:seed:test": "NODE_OPTIONS=--conditions=react-server tsx scripts/seed.ts --test",
+    "recompute:derived": "NODE_OPTIONS=--conditions=react-server tsx scripts/recompute-derived.ts"
   },
   "dependencies": {
     "@vercel/functions": "^3.9.7",

@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 4 complete — Phase 5 (service layer, writes) next · **Last updated:** 2026-09-14
+**Status:** Phase 5 complete — Phase 6 (authentication) next · **Last updated:** 2026-09-14
 
 ---
 
@@ -169,11 +169,11 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] `services/audit.ts` — in-transaction, personal fields by name only **(FR-405, SEC-11)** — lives in `db/audit.ts` (`writeAudit`, `auditDiff`) because it runs inside other services' transactions; an admin audit read belongs to the dashboard phase
 - [x] `services/privacy.ts` — request records; `eraseFounder` with audit scrub + `erasure_log` **(FR-410)**. The app role cannot UPDATE `audit_log`, so the scrub goes through a narrow `SECURITY DEFINER` function that can only redact one entity's audit rows — migrations `0003_privacy_requests` (table) and `0004_founder_erasure_scrub` (`scrub_founder_audit(uuid)`: pinned `search_path`, refuses while the founder exists, EXECUTE revoked from PUBLIC and granted to the app role only). Erased photos return to staging past the 24 h window, so the media GC deletes the files
 - [x] `revalidateTag(tag, { expire: 0 })` for every affected tag, incl. neighbours **(NFR-02)** — `db/mutation.ts` expires only after commit; `db/writes/tags.ts` collects neighbours per entity (old slugs, acquired companies, founders, investors, batches)
-- [ ] `scripts/recompute-derived.ts`
-- [ ] Tests per TEST_PLAN §6 (writes, lifecycle, privacy, caching freshness)
-- [ ] Authz suite covers **100%** of mutations incl. admin-only table
+- [x] `scripts/recompute-derived.ts` — `pnpm recompute:derived [--test]`, via `repairStartupDerived` (one transaction, reports how many startups were wrong); cannot expire caches from outside Next.js, so it says to redeploy after a repair
+- [x] Tests per TEST_PLAN §6 (writes, lifecycle, privacy, caching freshness) — `src/server/cache/freshness.test.ts` reads ~30 cached pages, performs each of 15 writes, and fails on any page that changed without its tags expiring; a control write that bypasses the services proves it detects staleness. It caught a gap: an acquired company's card names its acquirer, so `startupTags` now also expires the acquired companies' neighbours
+- [x] Authz suite covers **100%** of mutations incl. admin-only table — registry completeness fails on any unregistered export
 
-**EXIT:** authz suite complete · publish makes a record public and archive hides it · totals and FX correct on fixtures · erasure leaves no personal data in audit rows.
+**EXIT:** ✅ authz suite complete · publish makes a record public and archive hides it (`lifecycle.test.ts`) · totals and FX correct on fixtures (`round-writes.test.ts`, `relation-writes.test.ts`) · erasure leaves no personal data in audit rows (`privacy.test.ts`) · 711 tests; services 98% lines.
 
 ---
 

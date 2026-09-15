@@ -23,23 +23,27 @@ async function slugTags(tx: Executor, query: SQL): Promise<string[]> {
   return rows.map(({ kind, slug }) => cacheTags[kind](slug));
 }
 
-/** A startup's own pages, and every page that shows its card or name. */
+/**
+ * A startup's own pages, and every page that shows its card or name. That includes the companies
+ * it acquired: their cards name the acquirer, so their pages and neighbours change too.
+ */
 export async function startupTags(
   tx: Executor,
   startupIds: readonly string[],
 ): Promise<string[]> {
   if (startupIds.length === 0) return [];
   const ids = idList(startupIds);
+  const targets = sql`select id from public.startups where id in (${ids})
+    union select id from public.startups where acquired_by_startup_id in (${ids})`;
   return [
     ...(await slugTags(
       tx,
       sql`
-      select 'startup'::text as kind, slug from public.startups where id in (${ids})
-      union select 'startup', slug from public.startups where acquired_by_startup_id in (${ids})
-      union select 'startup', old_slug from public.slug_redirects where entity_type = 'startup' and entity_id in (${ids})
-      union select 'founder', f.slug from public.startup_founders sf join public.founders f on f.id = sf.founder_id where sf.startup_id in (${ids})
-      union select 'investor', i.slug from public.investments x join public.investors i on i.id = x.investor_id where x.startup_id in (${ids})
-      union select 'batch', b.slug from public.startup_batches sb join public.batches b on b.id = sb.batch_id where sb.startup_id in (${ids})`,
+      select 'startup'::text as kind, slug from public.startups where id in (${targets})
+      union select 'startup', old_slug from public.slug_redirects where entity_type = 'startup' and entity_id in (${targets})
+      union select 'founder', f.slug from public.startup_founders sf join public.founders f on f.id = sf.founder_id where sf.startup_id in (${targets})
+      union select 'investor', i.slug from public.investments x join public.investors i on i.id = x.investor_id where x.startup_id in (${targets})
+      union select 'batch', b.slug from public.startup_batches sb join public.batches b on b.id = sb.batch_id where sb.startup_id in (${targets})`,
     )),
     cacheTags.startupsList(),
     cacheTags.news(),

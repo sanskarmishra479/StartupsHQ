@@ -5,6 +5,35 @@ import type { Database } from "./client";
 
 type Executor = Pick<Database, "execute">;
 
+/** Each startup's derived columns as one comparable string. */
+async function derivedSnapshot(db: Executor): Promise<Map<string, string>> {
+  const { rows } = await db.execute<{ id: string; derived: string }>(sql`
+    select id,
+           total_raised_usd::text || '|' || total_debt_usd::text || '|' ||
+             coalesce(latest_round_id::text, '-') as derived
+    from public.startups`);
+  return new Map(rows.map((row) => [row.id, row.derived]));
+}
+
+/**
+ * The repair path (ADR-009): recomputes every startup in one transaction and reports how many
+ * were wrong. Safe at any time, because the columns are a pure function of published rounds.
+ */
+export async function repairStartupDerived(
+  db: Pick<Database, "transaction">,
+): Promise<{ checked: number; repaired: number }> {
+  return db.transaction(async (tx) => {
+    const before = await derivedSnapshot(tx);
+    await recomputeStartupDerived(tx);
+    const after = await derivedSnapshot(tx);
+    let repaired = 0;
+    for (const [id, value] of after) {
+      if (before.get(id) !== value) repaired += 1;
+    }
+    return { checked: after.size, repaired };
+  });
+}
+
 /**
  * Recomputes the derived startup columns (FR-404, ADR-009, ADR-018):
  * - total_raised_usd: published equity + convertible rounds
