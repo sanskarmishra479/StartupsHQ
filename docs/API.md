@@ -517,8 +517,10 @@ An admin cannot demote or deactivate themselves → `422`.
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` / `POST` | `/privacy/requests` | Record and list requests: `{ requestType: access \| correction \| erasure \| objection, subjectEntityType, subjectEntityId?, receivedAt, notes }`; due date = received + 30 days |
-| `POST` | `/founders/{id}/erase` | `{ "confirm": "ERASE <founder-slug>" }`. Removes the founder, join rows and media; scrubs related `audit_log` rows; writes `erasure_log`; expires caches. Irreversible. `422` if confirmation text doesn't match. |
+| `GET` | `/privacy/requests?status=` | Earliest due first |
+| `POST` | `/privacy/requests` | `{ requestType: access \| correction \| erasure \| objection, subjectEntityType: founder \| user \| other, subjectEntityId?, receivedAt (ISO 8601 with offset), notes? }` → `201`; `dueAt` = received + 30 days; a `receivedAt` in the future → `422` |
+| `PATCH` | `/privacy/requests/{id}` | `{ status: completed \| rejected, notes? }`; resolving an already resolved request → `422` |
+| `POST` | `/founders/{id}/erase` | `{ "confirm": "ERASE <founder-slug>" }` → `200 { scrubbedAuditRows }`. Removes the founder, their stints and redirects; queues their media for deletion; redacts related `audit_log` rows through `scrub_founder_audit` (SRS §4.12); writes `erasure_log` (SHA-256 of the id only); expires caches. Irreversible. `422` if the confirmation text doesn't match exactly. |
 
 Requests arrive through the published privacy email address; there is deliberately no public write endpoint.
 

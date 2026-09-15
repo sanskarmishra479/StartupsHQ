@@ -26,7 +26,8 @@ export type AuditEntityType =
   | "investor"
   | "batch"
   | "round"
-  | "category";
+  | "category"
+  | "privacy_request";
 
 export async function writeAudit(
   tx: Pick<Transaction, "insert">,

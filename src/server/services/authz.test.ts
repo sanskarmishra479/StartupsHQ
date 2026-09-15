@@ -24,6 +24,7 @@ import * as founders from "./founders";
 import * as investorWrites from "./investor-writes";
 import * as investors from "./investors";
 import * as lifecycle from "./lifecycle";
+import * as privacy from "./privacy";
 import * as relationWrites from "./relation-writes";
 import * as roundWrites from "./round-writes";
 import * as rounds from "./rounds";
@@ -345,6 +346,25 @@ const REGISTRY: AuthzRegistry = {
     kind: "admin-mutation",
     invoke: (ctx) =>
       slugWrites.changeSlug(ctx, "startup", NIL_UUID, { slug: "anything" }),
+  },
+  // Privacy is admin-only, reads included: the admin-mutation contract checks exactly that.
+  "services/privacy.ts#recordRequest": {
+    kind: "admin-mutation",
+    invoke: (ctx) => privacy.recordRequest(ctx, {} as never),
+  },
+  "services/privacy.ts#listRequests": {
+    kind: "admin-mutation",
+    invoke: (ctx) => privacy.listRequests(ctx),
+  },
+  "services/privacy.ts#resolveRequest": {
+    kind: "admin-mutation",
+    invoke: (ctx) =>
+      privacy.resolveRequest(ctx, NIL_UUID, { status: "completed" }),
+  },
+  "services/privacy.ts#eraseFounder": {
+    kind: "admin-mutation",
+    invoke: (ctx) =>
+      privacy.eraseFounder(ctx, NIL_UUID, { confirm: "ERASE nobody" }),
   },
   "services/lifecycle.ts#hardDelete": {
     kind: "admin-mutation",

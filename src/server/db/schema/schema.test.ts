@@ -22,7 +22,7 @@ const checks = tables.flatMap((table) => {
 
 describe("schema", () => {
   it("exports every table", () => {
-    expect(tables).toHaveLength(23);
+    expect(tables).toHaveLength(24);
   });
 
   // drizzle-kit truncates a CHECK expression at the first ';' when it generates a migration.

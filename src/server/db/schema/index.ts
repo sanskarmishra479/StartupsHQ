@@ -12,6 +12,7 @@ export * from "./joins";
 export * from "./locations";
 export * from "./media";
 export * from "./ops";
+export * from "./privacy";
 export * from "./redirects";
 export * from "./rounds";
 export * from "./startups";

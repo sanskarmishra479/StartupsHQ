@@ -22,6 +22,20 @@
       "when": 1789375148428,
       "tag": "0002_append_only_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789453755121,
+      "tag": "0003_privacy_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789453756260,
+      "tag": "0004_founder_erasure_scrub",
+      "breakpoints": true
     }
   ]
 }
