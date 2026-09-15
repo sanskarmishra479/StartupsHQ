@@ -179,18 +179,18 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 6 · Authentication  *(SEC-04, SEC-08, FR-201, FR-208)*
 
-- [ ] `auth/better-auth.ts` — Drizzle adapter, email + password (scrypt default), **two-factor (TOTP) plugin, mandatory**, 10 recovery codes. Better Auth's 2FA is opt-in, so enforcement is ours: `requireEditor()` refuses users without `two_factor_enabled`, and first login forces enrollment
-- [ ] `[?]` **Spike: cookie prefix.** Verify whether Better Auth can emit a `__Host-` cookie on the admin origin. If yes, use it; if not, `__Secure-` with **no `Domain` attribute** (host-only). Record the outcome in SRS SEC-04.
-- [ ] Sessions: httpOnly, Secure, SameSite=Lax, rotation on privilege change, server-side revocation
-- [ ] Better Auth rate limiter → Upstash secondary storage (in-memory does not work on serverless)
-- [ ] Login limits: 20 / 15 min per IP; progressive delay per email after 5 failures; **no lockout**; fail closed if Upstash unavailable
-- [ ] Transactional email provider: invites, password reset, 2FA reset notices **(FR-201, FR-208)**
-- [ ] `getSessionContext()` → `RequestContext`; unverifiable or 2FA-incomplete ⇒ `publicContext()`
-- [ ] `requireEditor()` / `requireAdmin()` handler helpers (layer 2)
+- [x] `auth/better-auth.ts` — Drizzle adapter, email + password (scrypt default), **two-factor (TOTP) plugin, mandatory**, 10 recovery codes. Better Auth's 2FA is opt-in, so enforcement is ours: `requireEditor()` refuses users without `two_factor_enabled`, and first login forces enrollment — sign-up closed; plugin account lockout disabled (SEC-08)
+- [x] **Spike: cookie prefix.** Verify whether Better Auth can emit a `__Host-` cookie on the admin origin. If yes, use it; if not, `__Secure-` with **no `Domain` attribute** (host-only). Record the outcome in SRS SEC-04. — **`__Host-` works** (2026-09-15): Better Auth's own prefix disabled, cookie named `__Host-startupshq.*` with Secure, Path=/, no Domain; verified in `auth-flow.test.ts`
+- [ ] Sessions: httpOnly, Secure, SameSite=Lax, rotation on privilege change, server-side revocation — all done and tested except **rotation on privilege change**, which lands with role changes in the users service (FR-208)
+- [x] Better Auth rate limiter → Upstash secondary storage (in-memory does not work on serverless) — as `rateLimit.customStorage`, not `secondaryStorage`: the latter would move **sessions** into Redis, so an outage would sign everyone out
+- [x] Login limits: 20 / 15 min per IP; progressive delay per email after 5 failures; **no lockout**; fail closed if Upstash unavailable — `auth/login-limits.ts`; local and CI store is Redis + serverless-redis-http in `docker-compose.yml` (decided 2026-09-15)
+- [ ] Transactional email provider: invites, password reset, 2FA reset notices **(FR-201, FR-208)** — **Resend** (decided 2026-09-15), `lib/email.ts`; password reset wired; invites and 2FA-reset notices land with the users service
+- [x] `getSessionContext()` → `RequestContext`; unverifiable or 2FA-incomplete ⇒ `publicContext()` — `auth/session.ts` (`getSessionStatus` also reports `enrollment-required`)
+- [x] `requireEditor()` / `requireAdmin()` handler helpers (layer 2)
 - [ ] **`src/proxy.ts`** (not `middleware.ts`) — host routing: `/admin/*`, `/api/auth/*`, non-GET `/api/v1/*` only on the admin host; session gate for `/admin/*` (layer 1)
 - [ ] `/api/auth/[...all]` on the admin origin
-- [ ] `scripts/seed-admin.ts` — first admin from CLI args, password hashed by Better Auth, 2FA enrollment forced on first login (moved from Phase 2)
-- [ ] Tests: enrollment forced; recovery code single-use; login without 2FA cannot write; revoked session rejected; no lockout from another IP; editor refused admin-only action; admin paths 404 on public host
+- [x] `scripts/seed-admin.ts` — first admin from CLI args, password hashed by Better Auth, 2FA enrollment forced on first login (moved from Phase 2) — `pnpm seed:admin --email … --name …`; the password comes only from `SEED_ADMIN_PASSWORD`, never an argument
+- [ ] Tests: enrollment forced; recovery code single-use; login without 2FA cannot write; revoked session rejected; no lockout from another IP; editor refused admin-only action; admin paths 404 on public host — all passing except **admin paths 404 on public host**, which needs `proxy.ts` (6b)
 
 **EXIT:** three independent layers verified **(SEC-03.5)** · `seed-admin.ts` → working login with 2FA · cookie-prefix spike recorded.
 

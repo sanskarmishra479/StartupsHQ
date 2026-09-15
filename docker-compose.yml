@@ -23,5 +23,35 @@ services:
       timeout: 5s
       retries: 10
 
+  # Login and prefill rate limits (SEC-08, ADR-017). Production uses Upstash over HTTPS; locally
+  # and in CI, serverless-redis-http exposes this Redis through the same REST API, so the same
+  # @upstash/redis client and fail-closed code path run everywhere (decided 2026-09-15).
+  redis:
+    # Redis 8, pinned by digest.
+    image: redis:8-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+    restart: unless-stopped
+    # No port published: only the HTTP proxy below talks to it.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis-http:
+    # serverless-redis-http, the Upstash-compatible REST proxy, pinned by digest.
+    image: hiett/serverless-redis-http@sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      SRH_MODE: env
+      # Local-only token for a loopback-bound container; not a secret.
+      SRH_TOKEN: startupshq_local_redis
+      SRH_CONNECTION_STRING: redis://redis:6379
+    ports:
+      # Loopback only, like the database.
+      - "127.0.0.1:8079:80"
+
 volumes:
   db-data:
