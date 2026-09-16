@@ -197,7 +197,7 @@ Admin reads and staff accounts: `src/app/api/v1/admin-endpoints.test.ts` — an 
 
 | Spec | Scenario | Asserts |
 |---|---|---|
-| `graph.spec.ts` | `/` → company → founder → *earlier* startup → investor → portfolio → another company → batch → cohort | every hop by click, no dead ends |
+| `graph.spec.ts` | `/` (landing) → company → founder → *earlier* startup → investor → portfolio → another company → batch → cohort | every hop by click, no dead ends |
 | `admin-crud.spec.ts` | login + TOTP on `admin.localhost` → create startup with 2 founders (1 inline), 3 investors, a batch, a EUR round → publish | appears on `/`, its page, both founder pages, investor page, `/news` with original currency shown |
 | `lifecycle.spec.ts` | archive a published company → visit publicly → restore → admin changes slug → visit old URL | 404 while archived; visible after re-publish; old URL 301s to new |
 | `auth.spec.ts` | first login forces 2FA enrollment; recovery code; session revocation; cross-origin form POST from the public origin | enrollment required; code single-use; revoked immediately; POST rejected |
@@ -215,7 +215,8 @@ Admin reads and staff accounts: `src/app/api/v1/admin-endpoints.test.ts` — an 
 | NFR-02 | **Vitest** (`src/server/cache/cache.test.ts`, with `next/cache` replaced by a recording double): every cached read sets explicit tags and `cacheLife`, returns plain JSON, rejects malformed input before the cache; static scan proves no cached scope takes a context or reads request data. **Production build** (Phase 22 preview): two sequential reads from different clients; write then read | tags and lifetimes as specified; one DB execution for both reads; no stale read after write |
 | NFR-03 | Rich-results test; sitemap diff after publish; thin facet check | valid JSON-LD; new entity in sitemap; thin facets `noindex` and absent from sitemap |
 | NFR-04 | axe in CI; manual keyboard + screen reader pass | zero violations; initials avatars labelled |
-| NFR-05/06 | `responsive.spec.ts`; manual theme pass | no horizontal scroll; both themes legible |
+| NFR-05/06 | `responsive.spec.ts`; manual theme pass; `src/app/tokens.test.ts` | no horizontal scroll; both themes legible; every text token ≥ 4.5:1 in both themes |
+| FR-113 | `landing.spec.ts`; `src/components/landing/grid-math.test.ts`; manual pass on a real mid-range phone | all cards are links in the HTML; with reduced motion the flat grid shows and no WebGL context exists; Tab reaches cards and Enter opens one; drag and fling work by touch; hit-testing matches the curve |
 | NFR-07 | Force an error on preview | Sentry event with request id and no PII |
 | NFR-08 | Integration | exact bigint sums; FX recorded per round; atomic multi-table writes |
 | **NFR-11** | Vercel usage dashboard on preview after a full crawl of the seed site; code review | **image transformations = 0**; grid links use hover prefetch; OG served from Blob; budget alerts configured |

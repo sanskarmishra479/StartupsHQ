@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** **backend done (M5)** — Phase 13 (design system) in progress · **Last updated:** 2026-09-16
+**Status:** **backend done (M5)** — Phase 13 (design system) built; three owner checks open (real-phone FPS, accent colour, Blob CORS at Phase 22) — Phase 14 next · **Last updated:** 2026-09-16
 
 ---
 
@@ -314,24 +314,28 @@ All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is fr
 | Accent colour | Open — tokens ship neutral; chosen while reviewing the gallery |
 | Order | Public site first (13–17), then admin (18) |
 
-- [ ] Tokens as CSS custom properties (colour, spacing, radii incl. pill, type scale, motion); dark default, light via `[data-theme]`, "system" via `prefers-color-scheme`; toggle persisted per viewer without an inline script (public CSP)
-- [ ] Typography: Geist scale, Geist Mono metadata style; create-next-app defaults removed
-- [ ] Brand: sanitised inline `Logo`; `favicon.ico`, `icon.svg`, `apple-icon.png`; user-facing name "StartupsHQ"
-- [ ] Primitives: `PillButton`, `SegmentedNav`, `IconToggle`, `Chip`, `EntityCard`, `ResponsiveImage` (srcset from `variants`, blur placeholder), `InitialsAvatar`, `MetaRow`, `StatTile`, `Money` (USD + original currency), `SectionHeading`, `EmptyState`, `LoadMore`
-- [ ] Client-safe public DTO types in `src/types`, checked against the server DTOs — `src/components` never imports `src/server/**`
-- [ ] shadcn/ui: added per component when a later phase needs one (dialog, sheet, combobox), restyled to tokens — not installed speculatively
-- [ ] Focus rings, ≥ 4.5:1 contrast both themes, reduced motion
-- [ ] Responsive at 360 / 768 / 1280 / 2560
-- [ ] Development-only components gallery, both themes, axe-checked
-- [ ] `[?]` Curved-grid spike (OGL): endless wrap, visible-only textures, mouse + touch inertia, flat fallback; measure bundle, FPS desktop + mid-range phone; verify Blob CORS for textures
-- [ ] Docs: PRD §2, SRS §6.1 (`/` landing, `/companies` grid), ADR-023 (immersive landing as progressive enhancement)
+- [x] Tokens as CSS custom properties (colour, spacing, radii incl. pill, type scale, motion) in `src/app/globals.css`; Tailwind's stock palette switched off; dark default, light via `[data-theme]`, "system" via `prefers-color-scheme`; toggle persisted in `localStorage`, applied before paint by an inline script (ADR-022)
+- [x] Typography: Geist scale, `meta` utility (Geist Mono caps); create-next-app defaults removed
+- [x] Brand: `Logo` redraws the owner's mark in `currentColor`; `pnpm brand:icons` generates `favicon.ico`, `icon.svg`, `apple-icon.png` from the same geometry (no source metadata served); display name "StartupsHQ"
+- [x] Primitives: `PillButton`, `SegmentedNav`, `IconToggle`, `ThemeToggle`, `Chip`, `HoverPrefetchLink` (NFR-11), `EntityCard` + `StartupCardCell`, `ResponsiveImage`, `InitialsAvatar`, `MetaRow`, `StatTile`, `Money` (USD + original currency), `SectionHeading`, `EmptyState`, `LoadMore`
+- [x] Client-safe public DTO types in `src/types/public.ts`, type-checked against the server DTOs; `src/lib/import-boundary.test.ts` keeps components, hooks, lib and types off `src/server` (type imports included)
+- [x] shadcn/ui: not installed speculatively — added per component when a later phase needs a dialog, sheet or combobox, restyled to tokens
+- [x] Focus rings, ≥ 4.5:1 contrast both themes (`src/app/tokens.test.ts`), reduced motion via motion tokens
+- [x] Responsive at 360 / 768 / 1280 / 2560: no horizontal scroll; chips never break mid-word; phone chrome fits
+- [x] Development-only components gallery `/dev/gallery`, both themes — **axe: zero violations** in both; keyboard: Tab reaches cards, visible ring, Enter opens
+- [x] `[?]` resolved — curved-grid spike (`/dev/curved-grid`, OGL 1.0.11): endless wrap over 300 cards, atlas textures only for cards in view, one instanced draw + barrel pass, mouse/touch/wheel inertia, hit-testing shared with the shader, keyboard focus glides to the card, flat fallback with **no WebGL context under reduced motion**. **Lazy chunk 19.9 kB gzipped** (67 kB raw); eager part 6.8 kB. Nothing redraws at rest
+- [ ] **FPS on real hardware (you):** open `/dev/curved-grid` on a desktop and a mid-range phone and read the frame meter while dragging (headless Chromium only has software GL, so its numbers mean nothing)
+- [ ] **Blob CORS for textures:** a real Blob host answers with `access-control-allow-origin: *`, but only an error response was probed; confirm on a stored image once our store exists (Phase 22), before the landing ships to production
+- [ ] **Accent colour (you):** tokens are neutral; pick a hex while reviewing `/dev/gallery`
+- [x] Docs: PRD §3/§7, SRS FR-113 (`/` landing) and FR-101 (`/companies`), NFR-06 as built, ADR-022 (public CSP), ADR-023 (immersive landing)
 
-**EXIT:** components gallery in both themes · axe clean · curved-grid spike measured.
+**EXIT:** components gallery in both themes · axe clean · curved-grid spike measured. *Met except the real-device FPS reading and the accent colour, which need the owner; Blob CORS is confirmed at Phase 22.*
 
 ## Phase 14 · App shell, landing & explore grid  *(FR-101)*
 
 - [ ] Public layout: header, footer, skip link, theme toggle — **no cookie or header reads**
 - [ ] `/` immersive landing: cached read of the up to 300 most recent published `StartupCard`s in `src/server/cache/startups.ts`, registered in the authz suite
+- [ ] `/` wires `CurvedGrid` with the floating chrome (logo, directory counts, ⌘K pill, view toggle, section nav, filter pill); Lighthouse ≥ 95 on `/`
 - [ ] `/companies` explore grid via `src/server/cache` reads
 - [ ] Facets and sort as URL params; mobile filter sheet
 - [ ] Load more via `GET /api/v1/startups` with signed cursor; depth-limit message

@@ -25,7 +25,7 @@ Existing tools sit at two extremes: expensive enterprise databases (Crunchbase, 
 
 ## 3. Differentiation
 
-Primary reference is [startups.gallery](https://startups.gallery) — excellent taste, minimal UI, curated. We adopt its visual restraint and URL structure. We beat it on depth:
+Primary reference is [startups.gallery](https://startups.gallery) — excellent taste, minimal UI, curated. We adopt its content model and URL structure, and its calm full list at `/companies`. *Amended 2026-09-16:* the front door takes the **feel of [phantom.land](https://phantom.land)** instead of the gallery's restraint — a dark-first, immersive, endlessly draggable curved grid of recent companies, built as progressive enhancement over real links (ARCHITECTURE ADR-023). We beat startups.gallery on depth:
 
 | Capability | startups.gallery | Crunchbase | **startupsHQ** |
 |---|---|---|---|
@@ -73,7 +73,8 @@ Primary reference is [startups.gallery](https://startups.gallery) — excellent 
 ## 7. Features — v1
 
 ### Must have
-- **Explore grid** (`/`) — company cards with cover, logo, name, tagline, industry · stage · work type · city. Facet filters and sorts. "Load more".
+- **Landing** (`/`) — the most recently added companies (up to 300) on a curved grid that drags endlessly, on phones and tablets as on desktops; every card is still a real link. Reduced motion or no WebGL shows the same cards as a flat grid.
+- **Explore grid** (`/companies`, "Show all") — company cards with cover, logo, name, industry · stage · work type, and the latest round. Facet filters and sorts. "Load more".
 - **Company page** — full profile, founders strip, "Backed by" investor logos, batch badges, funding timeline, totals, similar companies.
 - **Founder page** — photo (only when founder-supplied or licensed; otherwise initials), bio, links, and every startup with role and tenure.
 - **Investor page** — bio, full portfolio grid, rounds led, stage/industry breakdown.

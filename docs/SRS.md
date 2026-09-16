@@ -133,7 +133,7 @@ startupsHQ/
     │   ├── api/v1/
     │   ├── layout.tsx
     │   └── sitemap.ts robots.ts
-    ├── components/               ui/ (shadcn) · cards/ · filters/ · forms/ · layout/
+    ├── components/               ui/ · cards/ · media/ · data/ · brand/ · landing/ · filters/ · forms/ · layout/
     ├── hooks/
     ├── lib/                      client-safe utils ONLY
     ├── types/
@@ -312,7 +312,8 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 
 | ID | Path | Requirement |
 |---|---|---|
-| FR-101 | `/` | Explore grid. Facets via URL params (stage, industry, work type, city, country, batch, investor, founder, q). Sorts: recent, raised, name. Signed keyset cursor pagination, 24/page. Acquired companies excluded by default, toggleable. Card links use hover prefetch, not viewport prefetch (NFR-11). |
+| FR-113 | `/` | Immersive landing (ADR-023). Up to 300 most recently added published startups as `StartupCard`s from a cached in-process read (`src/server/cache/startups.ts`, registered in the authz suite), rendered first as a server-rendered grid of real links. When `prefers-reduced-motion` is not set and WebGL is available, a lazily loaded canvas (OGL) shows the same cards on a curved grid that wraps endlessly and pans by mouse, touch and wheel with inertia; the links stay in the page, visually hidden, and keyboard focus glides the canvas to the focused card. Reduced motion, no WebGL or a lost context ⟹ the flat grid, and no WebGL context is created under reduced motion. The same on phone, tablet and desktop. No blocking loader. |
+| FR-101 | `/companies` | Explore grid ("Show all"; moved from `/` by ADR-023). Facets via URL params (stage, industry, work type, city, country, batch, investor, founder, q). Sorts: recent, raised, name. Signed keyset cursor pagination, 24/page. Acquired companies excluded by default, toggleable. Card links use hover prefetch, not viewport prefetch (NFR-11). |
 | FR-102 | `/companies/[slug]` | Cover + logo, name (with "(Acquired by X)"), tagline, description, meta row, founders strip, "Backed by" investor logos, batch badges, round timeline newest-first with cited sources, totals (raised, and debt shown separately when present), ≥ 6 similar companies. Unknown, draft or archived ⟹ 404. An old slug ⟹ 301 to the current slug (FR-409). |
 | FR-103 | `/founders/[slug]` | Photo or initials avatar, name, headline, bio, links, and **every** startup with role, tenure, current/past, newest-first. Same 404/301 rules. |
 | FR-104 | `/investors/[slug]` | Logo, name, type, description, website, portfolio grid (paginated), rounds led, stage and industry breakdown. |
@@ -397,7 +398,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 | NFR-03 | **SEO:** every indexable public page server-rendered with unique `<title>`, description, canonical, OG/Twitter tags (OG image from Blob, FR-111); JSON-LD `Organization` on companies, `Person` on founders; sitemap regenerated on publish. `noindex` is applied only to thin facet pages (FR-108) and to non-content routes. |
 | NFR-04 | **Accessibility:** WCAG 2.1 AA — keyboard reachable, visible focus, ≥ 4.5:1 contrast in both themes, alt text on every image (initials avatars labelled), labelled controls, ARIA on comboboxes. |
 | NFR-05 | **Responsive:** 360 px to 2560 px, no horizontal body scroll. |
-| NFR-06 | **Theming:** light/dark via CSS custom properties; respects `prefers-color-scheme`; explicit toggle persists per viewer. |
+| NFR-06 | **Theming:** light/dark via CSS custom properties; respects `prefers-color-scheme`; explicit toggle persists per viewer. As built (Phase 13): **dark is the default**; the toggle offers dark, light and "system", which follows `prefers-color-scheme`; the choice lives in `localStorage` and an inline script applies it before paint, so public pages stay static. |
 | NFR-07 | **Observability:** Sentry live before launch (PII scrubbing on); structured logs with request id. Vercel retains runtime logs only 1 h (Hobby) / 1 day (Pro), so Sentry is the incident record. |
 | NFR-08 | **Data integrity:** money as `bigint` whole USD, never float; FX recorded per round; multi-table writes transactional; FK and check constraints enforced in the DB. |
 | NFR-09 | **Browsers:** Chrome/Edge/Firefox 111+, Safari 16.4+ (Next.js 16 baseline); iOS Safari 17+. |
