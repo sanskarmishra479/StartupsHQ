@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** **backend done (M5)** — Phase 14 (app shell, landing, explore grid) built; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS at Phase 22 — Phase 15 next · **Last updated:** 2026-09-16
+**Status:** **backend done (M5)** — Phase 15 (entity pages) built; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS at Phase 22 — Phase 16 next · **Last updated:** 2026-09-16
 
 ---
 
@@ -351,13 +351,15 @@ Verified by driving the dev and production servers in Chromium: axe clean on `/`
 
 ## Phase 15 · Entity pages  *(FR-102 … FR-106)*
 
-- [ ] `/companies/[slug]`, `/founders/[slug]`, `/investors/[slug]`, `/batches/[slug]`, `/news`
-- [ ] 404 for unknown/draft/archived; **301 for old slugs**
-- [ ] Totals: raised, and debt separately when present; non-USD rounds show original currency
-- [ ] Founder pages render multiple stints; initials when no photo
-- [ ] **Every entity mention is a link** — explicit audit
+- [x] `/companies/[slug]`, `/founders/[slug]`, `/investors/[slug]`, `/batches/[slug]`, `/news` — cached reads, known slugs prerendered at build from `getPublishedSlugs` (new, `src/server/cache/slugs.ts`), others rendered on first visit
+- [x] 404 for unknown/draft/archived; **permanent redirect for old slugs** — the record is looked up before anything streams, so these are real HTTP statuses. Pages answer **308** (Next.js `permanentRedirect`); the API keeps 301
+- [x] Totals: raised, and debt separately when present; non-USD rounds show original currency; rounds cite their sources
+- [x] Founder pages render multiple stints (current/past, tenure); initials when no photo
+- [x] **Every entity mention is a link** — audited by crawling: 45 entity pages reachable from one company, all 200. Industry, stage, work-type and city mentions link to `/categories/…`, which 404 until Phase 16
+- [x] Investor portfolio and batch cohort load later pages from the API (cohort with `include_acquired=true`, as its first page); news loads later pages from `GET /api/v1/rounds`
+- [x] `e2e/graph.spec.ts`: the PRD §8 walk by clicks, the link crawl, old-slug redirect and hidden-record 404s — passing against a production build
 
-**EXIT:** PRD §8 traversal completes with zero dead ends, by hand and by Playwright.
+**EXIT:** PRD §8 traversal completes with zero dead ends, by hand and by Playwright. *Met for entity pages; category links resolve once Phase 16 lands.*
 
 ## Phase 16 · Category pages  *(FR-107, FR-108)*
 
