@@ -5,6 +5,7 @@ import * as cachedCategories from "../cache/categories";
 import * as cachedFounders from "../cache/founders";
 import * as cachedInvestors from "../cache/investors";
 import * as cachedRounds from "../cache/rounds";
+import * as cachedSlugs from "../cache/slugs";
 import * as cachedStartups from "../cache/startups";
 import * as cachedStats from "../cache/stats";
 import { closeDb, getDb } from "../db/client";
@@ -35,6 +36,7 @@ import * as roundWrites from "./round-writes";
 import * as rounds from "./rounds";
 import * as search from "./search";
 import * as slugWrites from "./slug-writes";
+import * as slugs from "./slugs";
 import * as startupWrites from "./startup-writes";
 import * as startups from "./startups";
 import * as stats from "./stats";
@@ -195,6 +197,12 @@ const REGISTRY: AuthzRegistry = {
     invoke: (ctx) => search.suggest(ctx, "sunset"),
     seesDraft: (result) => (result as unknown[]).length > 0,
   },
+  "services/slugs.ts#listSlugs": {
+    kind: "read",
+    invoke: (ctx) => slugs.listSlugs(ctx, "startup"),
+    seesDraft: (result) =>
+      (result as string[]).some((slug) => HIDDEN_STARTUPS.has(slug)),
+  },
   "services/stats.ts#getCounts": {
     kind: "read",
     invoke: (ctx) => stats.getCounts(ctx),
@@ -256,6 +264,12 @@ const REGISTRY: AuthzRegistry = {
       (result as { entries: { slug: string }[] }[]).some((group) =>
         group.entries.some((entry) => entry.slug === "quantum"),
       ),
+  },
+  "cache/slugs.ts#getPublishedSlugs": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedSlugs.getPublishedSlugs(ctx, "startup"),
+    seesDraft: (result) =>
+      (result as string[]).some((slug) => HIDDEN_STARTUPS.has(slug)),
   },
   "cache/stats.ts#getDirectoryCounts": {
     kind: "cached-read",

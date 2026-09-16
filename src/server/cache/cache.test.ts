@@ -13,6 +13,7 @@ import { getCategoryDirectory, getCategoryPage } from "./categories";
 import { getFounderPage } from "./founders";
 import { getInvestorPage } from "./investors";
 import { getNewsFirstPage } from "./rounds";
+import { getPublishedSlugs } from "./slugs";
 import {
   getLandingStartups,
   getSimilarStartups,
@@ -57,6 +58,12 @@ describe("cached reads", () => {
       "explore first page",
       () => getStartupsFirstPage(PUBLIC_READ, "raised"),
       ["startups:list"],
+      "hours",
+    ],
+    [
+      "published founder slugs",
+      () => getPublishedSlugs(PUBLIC_READ, "founder"),
+      ["stats", "sitemap"],
       "hours",
     ],
     [
@@ -156,6 +163,9 @@ describe("cached reads", () => {
     await expect(
       getStartupsFirstPage(PUBLIC_READ, "popular" as never),
     ).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      getPublishedSlugs(PUBLIC_READ, "users" as never),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(cacheCalls).toEqual([]);
   });
 });
@@ -176,6 +186,7 @@ describe("cache key safety (ADR-013)", () => {
       "founders.ts",
       "investors.ts",
       "rounds.ts",
+      "slugs.ts",
       "startups.ts",
       "stats.ts",
     ]);

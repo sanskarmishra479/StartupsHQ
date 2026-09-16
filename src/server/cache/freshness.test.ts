@@ -31,6 +31,7 @@ import { getCategoryDirectory, getCategoryPage } from "./categories";
 import { getFounderPage } from "./founders";
 import { getInvestorPage } from "./investors";
 import { getNewsFirstPage } from "./rounds";
+import { getPublishedSlugs } from "./slugs";
 import {
   getLandingStartups,
   getSimilarStartups,
@@ -104,6 +105,13 @@ const PAGES: readonly (readonly [string, () => Promise<unknown>])[] = [
   ),
   ["category directory", () => getCategoryDirectory(PUBLIC_READ)],
   ["directory counts", () => getDirectoryCounts(PUBLIC_READ)],
+  ...(["startup", "founder", "investor", "batch"] as const).map(
+    (entity) =>
+      [
+        `${entity} slugs`,
+        () => getPublishedSlugs(PUBLIC_READ, entity),
+      ] as const,
+  ),
 ];
 
 beforeAll(async () => {
