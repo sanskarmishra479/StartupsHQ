@@ -192,7 +192,13 @@ describe("taxonomy.listCategories", () => {
       isIndexable: false,
     });
     expect(entries(directory, "countries")).toEqual([
-      { slug: "india", name: "India", companyCount: 1, isIndexable: false },
+      {
+        slug: "india",
+        name: "India",
+        companyCount: 1,
+        isIndexable: false,
+        countryCode: "IN",
+      },
     ]);
   });
 

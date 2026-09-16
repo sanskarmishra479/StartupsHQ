@@ -40,6 +40,8 @@ export type CategoryEntry = Readonly<{
   name: string;
   companyCount: number;
   isIndexable: boolean;
+  /** Countries only: the ISO 3166-1 alpha-2 code `GET /startups?country=` takes. */
+  countryCode?: string;
 }>;
 
 export type CategoryDirectory = readonly Readonly<{

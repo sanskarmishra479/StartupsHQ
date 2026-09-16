@@ -22,7 +22,9 @@ import {
 import {
   getBySlug,
   list,
+  listRecent,
   listSimilar,
+  MAX_LANDING,
   type StartupFilters,
   type StartupSort,
 } from "./startups";
@@ -356,6 +358,22 @@ describe("startups.getBySlug", () => {
         (await list(anonymous, { filters: { batch: "parallel-w26" } })).data,
       ).toEqual([]);
     });
+  });
+});
+
+describe("startups.listRecent", () => {
+  it("returns the explore grid's recent order, without acquired or hidden companies", async () => {
+    const recent = await listRecent(anonymous);
+    const firstPage = await list(anonymous, { sort: "recent", limit: 48 });
+    expect(slugsOf(recent)).toEqual(slugsOf(firstPage.data));
+    expect(slugsOf(recent)).not.toContain("stealth-draft-co");
+    expect(slugsOf(recent)).not.toContain("pebble-notes");
+  });
+
+  it("caps the set, whatever is asked for", async () => {
+    expect(await listRecent(anonymous, 3)).toHaveLength(3);
+    expect(await listRecent(anonymous, 0)).toHaveLength(1);
+    expect(MAX_LANDING).toBe(300);
   });
 });
 

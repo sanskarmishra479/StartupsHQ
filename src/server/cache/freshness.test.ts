@@ -32,6 +32,7 @@ import { getFounderPage } from "./founders";
 import { getInvestorPage } from "./investors";
 import { getNewsFirstPage } from "./rounds";
 import {
+  getLandingStartups,
   getSimilarStartups,
   getStartupPage,
   getStartupsFirstPage,
@@ -67,6 +68,7 @@ const PAGES: readonly (readonly [string, () => Promise<unknown>])[] = [
         () => getStartupsFirstPage(PUBLIC_READ, sort),
       ] as const,
   ),
+  ["landing set", () => getLandingStartups(PUBLIC_READ)],
   ...["mira-okafor", "tomasz-wrobel", "jose-nunez", "grace-liu"].map(
     (slug) =>
       [`founder ${slug}`, () => getFounderPage(PUBLIC_READ, slug)] as const,

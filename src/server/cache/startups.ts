@@ -85,3 +85,18 @@ async function startupsFirstPage(
   cacheTag(cacheTags.startupsList());
   return startups.list(PUBLIC_READ, { sort });
 }
+
+/** The landing's curved grid: the most recently added startups, up to MAX_LANDING (FR-113). */
+export async function getLandingStartups(
+  ctx: PublicReadContext,
+): Promise<StartupCard[]> {
+  assertPublicRead(ctx);
+  return landingStartups();
+}
+
+async function landingStartups(): Promise<StartupCard[]> {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(cacheTags.startupsList());
+  return startups.listRecent(PUBLIC_READ);
+}

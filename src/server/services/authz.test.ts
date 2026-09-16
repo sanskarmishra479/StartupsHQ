@@ -117,6 +117,11 @@ const REGISTRY: AuthzRegistry = {
       ).data,
     seesDraft: includesHiddenStartup,
   },
+  "services/startups.ts#listRecent": {
+    kind: "read",
+    invoke: (ctx) => startups.listRecent(ctx),
+    seesDraft: includesHiddenStartup,
+  },
   "services/startups.ts#listSimilar": {
     kind: "read",
     // Café Algorithmique shares its primary industry with the archived Sunset Legacy.
@@ -211,6 +216,11 @@ const REGISTRY: AuthzRegistry = {
     kind: "cached-read",
     invoke: async (ctx) =>
       (await cachedStartups.getStartupsFirstPage(ctx, "name")).data,
+    seesDraft: includesHiddenStartup,
+  },
+  "cache/startups.ts#getLandingStartups": {
+    kind: "cached-read",
+    invoke: (ctx) => cachedStartups.getLandingStartups(ctx),
     seesDraft: includesHiddenStartup,
   },
   "cache/founders.ts#getFounderPage": {

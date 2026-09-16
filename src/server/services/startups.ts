@@ -86,6 +86,9 @@ export type ListStartupsInput = Readonly<{
 
 export const MAX_SIMILAR = 9;
 
+/** The landing's curved grid shows at most this many of the most recently added (FR-113). */
+export const MAX_LANDING = 300;
+
 // ── Filters ──────────────────────────────────────────────────────────────────────────────────
 
 const one = sql`1`;
@@ -293,6 +296,26 @@ export async function list(
     key: spec.key(row),
     id: row.id,
   }));
+}
+
+/**
+ * The landing's set (FR-113): up to MAX_LANDING of the most recently added visible startups, as
+ * cards, acquired companies excluded as on the explore grid. One query, no cursor: the landing
+ * shows the whole set at once, and the paginated API's 48-card limit stays in place (SEC-15).
+ */
+export async function listRecent(
+  ctx: ReadContext,
+  limit: number = MAX_LANDING,
+): Promise<StartupCard[]> {
+  const db = getDb();
+  const rows = await selectStartupCards(
+    db,
+    ctx,
+    and(...filterConditions(db, ctx, {})),
+  )
+    .orderBy(...SORTS.recent.order)
+    .limit(Math.min(MAX_LANDING, Math.max(1, Math.trunc(limit))));
+  return rows.map(toStartupCard);
 }
 
 // ── Detail ───────────────────────────────────────────────────────────────────────────────────

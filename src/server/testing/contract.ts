@@ -256,18 +256,26 @@ export const categoryPage = z.strictObject({
   pagination,
 });
 
+const categoryEntry = z.strictObject({
+  slug,
+  name: text,
+  companyCount: z.int().min(1),
+  isIndexable: z.boolean(),
+});
+
 export const categoryDirectory = z.array(
-  z.strictObject({
-    kind: z.enum(CATEGORY_KINDS),
-    entries: z.array(
-      z.strictObject({
-        slug,
-        name: text,
-        companyCount: z.int().min(1),
-        isIndexable: z.boolean(),
-      }),
-    ),
-  }),
+  z.union([
+    z.strictObject({
+      kind: z.literal("countries"),
+      entries: z.array(
+        categoryEntry.extend({ countryCode: z.string().regex(/^[A-Z]{2}$/) }),
+      ),
+    }),
+    z.strictObject({
+      kind: z.enum(CATEGORY_KINDS).exclude(["countries"]),
+      entries: z.array(categoryEntry),
+    }),
+  ]),
 );
 
 const group = <T extends z.ZodType>(item: T) =>

@@ -149,7 +149,7 @@ Every facet value with ≥ 1 published company, grouped by kind in the order `in
               "entries": [ { "slug": "ai", "name": "AI", "companyCount": 312, "isIndexable": true } ] } ] }
 ```
 
-Entries within a kind are ordered by name, except stages and work types, which keep their enum order. Counts include acquired companies and match the category page's `companyCount`.
+Country entries also carry `countryCode` (ISO 3166-1 alpha-2), the value `GET /startups?country=` takes — added 2026-09-16, additive. Entries within a kind are ordered by name, except stages and work types, which keep their enum order. Counts include acquired companies and match the category page's `companyCount`.
 
 ## 6.10 `GET /categories/{kind}/{slug}` *(FR-108)*
 

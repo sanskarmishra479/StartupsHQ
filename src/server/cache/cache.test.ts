@@ -14,6 +14,7 @@ import { getFounderPage } from "./founders";
 import { getInvestorPage } from "./investors";
 import { getNewsFirstPage } from "./rounds";
 import {
+  getLandingStartups,
   getSimilarStartups,
   getStartupPage,
   getStartupsFirstPage,
@@ -55,6 +56,12 @@ describe("cached reads", () => {
     [
       "explore first page",
       () => getStartupsFirstPage(PUBLIC_READ, "raised"),
+      ["startups:list"],
+      "hours",
+    ],
+    [
+      "landing set",
+      () => getLandingStartups(PUBLIC_READ),
       ["startups:list"],
       "hours",
     ],

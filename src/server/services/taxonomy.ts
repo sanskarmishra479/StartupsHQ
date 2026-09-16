@@ -128,6 +128,7 @@ export async function listCategories(
         .select({
           slug: countryRow.slug,
           name: countryRow.country,
+          countryCode: countryRow.countryCode,
           companyCount,
         })
         .from(countryRow)
@@ -186,9 +187,10 @@ export async function listCategories(
     },
     {
       kind: "countries",
-      entries: countryRows.map((row) =>
-        toCategoryEntry(row.slug, row.name, row.companyCount),
-      ),
+      entries: countryRows.map((row) => ({
+        ...toCategoryEntry(row.slug, row.name, row.companyCount),
+        countryCode: row.countryCode,
+      })),
     },
   ];
 }
