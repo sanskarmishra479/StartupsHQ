@@ -195,6 +195,50 @@ describe("proxy", () => {
     expect(response.headers.get("x-robots-tag")).toBe("noindex, nofollow");
   });
 
+  it("puts a policy, HSTS and a fresh nonce on every answer it gives", async () => {
+    const onPublic = proxy(
+      request(`https://${PUBLIC}/companies/kiln-analytics`),
+    );
+    expect(onPublic.headers.get("strict-transport-security")).toContain(
+      "max-age=31536000",
+    );
+    expect(onPublic.headers.get("content-security-policy")).toContain(
+      "frame-ancestors 'none'",
+    );
+    // A cached public page cannot carry a per-request nonce (SEC-09).
+    expect(onPublic.headers.get("content-security-policy")).not.toContain(
+      "nonce-",
+    );
+
+    const admin = proxy(
+      request(`${ADMIN_ORIGIN}/admin/startups`, {
+        cookie: "__Host-startupshq.session_token=opaque",
+      }),
+    );
+    const policy = admin.headers.get("content-security-policy") ?? "";
+    expect(policy).toMatch(
+      /script-src 'self' 'nonce-[0-9a-f]{32}' 'strict-dynamic'/,
+    );
+
+    const second = proxy(
+      request(`${ADMIN_ORIGIN}/admin/startups`, {
+        cookie: "__Host-startupshq.session_token=opaque",
+      }),
+    );
+    expect(second.headers.get("content-security-policy")).not.toBe(policy);
+
+    // Refusals and redirects are answers too, and carry the same headers.
+    for (const response of [
+      proxy(request(`https://${PUBLIC}/admin`)),
+      proxy(request(`${ADMIN_ORIGIN}/`)),
+    ]) {
+      expect(response.headers.get("content-security-policy")).toContain(
+        "object-src 'none'",
+      );
+      expect(response.headers.get("strict-transport-security")).toBeTruthy();
+    }
+  });
+
   it("does not run on static assets", () => {
     const [matcher = ""] = config.matcher;
     const pattern = new RegExp(`^${matcher}$`);

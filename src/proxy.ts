@@ -1,10 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAMES } from "./lib/auth-cookie";
 import { routeRequest } from "./lib/host-routing";
+import { securityHeaders } from "./lib/security-headers";
 
 // Next.js 16 Proxy (formerly middleware): host routing and the /admin session gate, layer 1 of 3
 // (SEC-03.5, ADR-014). It imports no server modules and never decides authorization on its own;
 // see src/lib/host-routing.ts for the rules.
+
+/** A fresh nonce per request, which is what makes a nonce worth having. */
+const newNonce = () => crypto.randomUUID().replaceAll("-", "");
 
 export function proxy(request: NextRequest): NextResponse {
   const decision = routeRequest(
@@ -19,31 +23,46 @@ export function proxy(request: NextRequest): NextResponse {
     { adminOrigin: process.env.ADMIN_ORIGIN },
   );
 
-  switch (decision.kind) {
-    case "redirect":
-      return NextResponse.redirect(
-        new URL(decision.location, request.url),
-        307,
-      );
-    case "not-found":
-      return decision.api
-        ? NextResponse.json(
-            { error: { code: "NOT_FOUND", message: "Not found." } },
-            { status: 404 },
-          )
-        : new NextResponse("Not found", {
-            status: 404,
-            headers: { "content-type": "text/plain; charset=utf-8" },
-          });
-    case "continue": {
-      const response = NextResponse.next();
-      // Nothing on the admin host belongs in a search index.
-      if (decision.adminHost) {
-        response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  const adminHost = decision.kind === "continue" && decision.adminHost;
+  // Only the admin origin renders per request, so only it can carry a nonce (SEC-09).
+  const nonce = adminHost ? newNonce() : undefined;
+  const headers = securityHeaders({
+    adminHost,
+    nonce,
+    development: process.env.NODE_ENV === "development",
+  });
+
+  const response = ((): NextResponse => {
+    switch (decision.kind) {
+      case "redirect":
+        return NextResponse.redirect(
+          new URL(decision.location, request.url),
+          307,
+        );
+      case "not-found":
+        return decision.api
+          ? NextResponse.json(
+              { error: { code: "NOT_FOUND", message: "Not found." } },
+              { status: 404 },
+            )
+          : new NextResponse("Not found", {
+              status: 404,
+              headers: { "content-type": "text/plain; charset=utf-8" },
+            });
+      default: {
+        if (nonce === undefined) return NextResponse.next();
+        // Pages read the nonce from this header to stamp their own script tags.
+        const forwarded = new Headers(request.headers);
+        forwarded.set("x-nonce", nonce);
+        return NextResponse.next({ request: { headers: forwarded } });
       }
-      return response;
     }
+  })();
+
+  for (const [name, value] of Object.entries(headers)) {
+    response.headers.set(name, value);
   }
+  return response;
 }
 
 export const config = {

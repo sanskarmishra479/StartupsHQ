@@ -269,8 +269,8 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 12 · Backend hardening & verification
 
-- [ ] **CSP split (SEC-09):** admin nonce CSP via `proxy.ts`; `[?]` spike `experimental.sri` hash CSP on public pages and confirm pages remain statically cached — if not workable, implement the documented fallback and record it
-- [ ] Other headers on both origins; **HSTS without `preload`** **(SEC-19)**
+- [x] **CSP split (SEC-09):** admin nonce CSP via `proxy.ts`; **`[?]` resolved — `experimental.sri` works**: `sha256` integrity is stamped on every emitted script and `/` and `/robots.txt` still build as static, so the public origin needs no nonce. Directives live in `src/lib/security-headers.ts` with unit tests; `proxy.ts` puts them on every answer, including refusals and redirects, and forwards the admin nonce as `x-nonce` for pages to use
+- [x] Other headers on both origins; **HSTS without `preload`** **(SEC-19)** — HSTS in `next.config.ts` (identical on both origins), asserted in `src/lib/security-headers.test.ts`
 - [ ] WAF rule definitions written down (thresholds, keys, bot challenge) for Phase 22 **(SEC-08)**
 - [ ] Upstash fail-closed behaviour verified for login and prefill
 - [ ] `maintenance.yml` → **audit retention** job under `retention` role **(SEC-11)**
