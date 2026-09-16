@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** **backend done (M5)** — Phase 13 (design system) built; three owner checks open (real-phone FPS, accent colour, Blob CORS at Phase 22) — Phase 14 next · **Last updated:** 2026-09-16
+**Status:** **backend done (M5)** — Phase 14 (app shell, landing, explore grid) built; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS at Phase 22 — Phase 15 next · **Last updated:** 2026-09-16
 
 ---
 
@@ -333,16 +333,21 @@ All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is fr
 
 ## Phase 14 · App shell, landing & explore grid  *(FR-101)*
 
-- [ ] Public layout: header, footer, skip link, theme toggle — **no cookie or header reads**
-- [ ] `/` immersive landing: cached read of the up to 300 most recent published `StartupCard`s in `src/server/cache/startups.ts`, registered in the authz suite
-- [ ] `/` wires `CurvedGrid` with the floating chrome (logo, directory counts, ⌘K pill, view toggle, section nav, filter pill); Lighthouse ≥ 95 on `/`
-- [ ] `/companies` explore grid via `src/server/cache` reads
-- [ ] Facets and sort as URL params; mobile filter sheet
-- [ ] Load more via `GET /api/v1/startups` with signed cursor; depth-limit message
-- [ ] **Card links: hover prefetch, not viewport prefetch** **(NFR-11)**
-- [ ] Skeletons, empty state, error boundary
+- [x] Public layout (`src/app/(public)`): skip link, error boundary; `(site)` pages get a sticky header (logo, section pill, search, theme toggle) and footer, section pill at the bottom on phones — **no cookie or header reads**
+- [x] `/` immersive landing: `getLandingStartups` in `src/server/cache/startups.ts` (up to 300 most recent, one query, hours lifetime, `startups:list` tag), registered in the authz, cache and freshness suites
+- [x] `/` wires `CurvedGrid` with the floating chrome: logo, directory counts (lg+), search, theme; view toggle (remembered per browser, hidden when the canvas cannot run), section pill (own row on phones), "Show all"
+- [ ] Lighthouse ≥ 95 on `/` — not measured yet: no Lighthouse runner is installed; measure on the preview deploy (Phase 20). Static HTML is 8.3 kB gzipped for `/`, 13.4 kB for `/companies`
+- [x] `/companies` explore grid: static page prerendering the cached unfiltered first page and the category directory
+- [x] Facets, search and sort as URL params under the API's own names, serialised canonically (`src/lib/explore-query.ts`); filter sheet is a native `<dialog>` (bottom sheet on phones, side panel on larger screens); removable filter chips, including batch / investor / founder from entity pages
+- [x] Load more via `GET /api/v1/startups` with the signed cursor; cards de-duplicated; `PAGINATION_DEPTH` shows the depth-limit message
+- [x] **Card links: hover prefetch, not viewport prefetch** **(NFR-11)** — `HoverPrefetchLink` in every card
+- [x] Skeletons (card-shaped), empty state, load error with retry, error boundary; an inline script hides the static fallback behind a skeleton when the URL is filtered, so shared links never flash the wrong cards
+- [x] Category directory country entries carry `countryCode` (API §6.10a, additive) for the country facet
+- [x] User-facing text says "StartupsHQ" (SEO titles, staff emails, share cards, authenticator issuer)
 
-**EXIT:** filtered/sorted URLs restore exactly on reload · no duplicate cards across pages.
+Verified by driving the dev and production servers in Chromium: axe clean on `/` and `/companies`; filter → search → reload restores the same cards; load more over real cursors returned 15 unique cards in name order; depth-limit message on a mocked `PAGINATION_DEPTH`; no horizontal scroll at 360 / 768 / 1280; no CSP violations in production. Nav links to `/news`, `/categories` and `/search` 404 until Phases 15–17.
+
+**EXIT:** filtered/sorted URLs restore exactly on reload · no duplicate cards across pages. *Met; Lighthouse on `/` is still to be measured.*
 
 ## Phase 15 · Entity pages  *(FR-102 … FR-106)*
 
