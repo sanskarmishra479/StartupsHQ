@@ -236,7 +236,7 @@ Admin reads and staff accounts: `src/app/api/v1/admin-endpoints.test.ts` — an 
 - [ ] Light and dark on every page type; 360 px phone pass
 - [ ] Draft and archived companies invisible in a private window
 - [ ] Published company appears in `/news`, `/`, its category pages and the sitemap
-- [ ] Prefill on five real company URLs — record what it gets wrong
+- [ ] Prefill on five real company URLs — record what it gets wrong (`pnpm try:prefill <url> …` prints what was extracted, with no sign-in needed)
 - [ ] Import the fixture CSV; commit; verify drafts
 - [ ] 404 and 500 pages
 - [ ] Revoke a session; confirm immediate logout
