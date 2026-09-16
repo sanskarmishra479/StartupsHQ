@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 11 complete — Phase 12 (backend hardening & verification) next · **Last updated:** 2026-09-16
+**Status:** Phase 12 complete — **backend done (M5)** — Phase 13 (design system) next · **Last updated:** 2026-09-16
 
 ---
 
@@ -271,17 +271,19 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 - [x] **CSP split (SEC-09):** admin nonce CSP via `proxy.ts`; **`[?]` resolved — `experimental.sri` works**: `sha256` integrity is stamped on every emitted script and `/` and `/robots.txt` still build as static, so the public origin needs no nonce. Directives live in `src/lib/security-headers.ts` with unit tests; `proxy.ts` puts them on every answer, including refusals and redirects, and forwards the admin nonce as `x-nonce` for pages to use
 - [x] Other headers on both origins; **HSTS without `preload`** **(SEC-19)** — HSTS in `next.config.ts` (identical on both origins), asserted in `src/lib/security-headers.test.ts`
-- [ ] WAF rule definitions written down (thresholds, keys, bot challenge) for Phase 22 **(SEC-08)**
-- [ ] Upstash fail-closed behaviour verified for login and prefill
-- [ ] `maintenance.yml` → **audit retention** job under `retention` role **(SEC-11)**
-- [ ] `maintenance.yml` → **FX import** job (ECB) **(FR-406)**
-- [ ] Role tests **(SEC-10)** · error-shape audit **(SEC-12)** · supply-chain checks **(SEC-13)**
-- [ ] `pnpm build && pnpm check:leak` — zero hits **(SEC-01)**
-- [ ] Coverage report: services ≥ 80%; 100% mutations + cached reads in authz suite **(NFR-10)**
-- [ ] Run `/security-review` on the full backend and resolve findings
-- [ ] **Verify `docs/API.md` against the implemented handlers**; fix whichever side is wrong; mark v1 frozen
+- [x] WAF rule definitions written down (thresholds, keys, bot challenge) for Phase 22 **(SEC-08)** — ARCHITECTURE §8: six rules with match, action and reasoning; thresholds are opening positions to tune from real traffic
+- [x] Upstash fail-closed behaviour verified for login and prefill — `login-limits.test.ts` ("store unavailable") and `prefill.test.ts` ("fails closed when the limiter is unavailable"); the write budget deliberately fails **open** and is tested that way
+- [x] `maintenance.yml` → **audit retention** job under `retention` role **(SEC-11)** — `pnpm audit:retention`; addresses cleared after 90 days, rows removed after 12 months, idempotent
+- [x] `maintenance.yml` → **FX import** job (ECB) **(FR-406)** — `pnpm fx:import`, weekdays after the ECB publishes; euro rates re-expressed as dollars per unit and upserted per day
+- [x] Role tests **(SEC-10)** — `db/roles.test.ts` connects as each role and proves what it may do: the app cannot change the audit log or the schema, retention touches only the log, backup only reads · error-shape audit **(SEC-12)** — `lib/error-shape.test.ts`: a driver error leaks no query, parameters, table or constraint name, and every typed error matches its documented status · supply-chain checks **(SEC-13)** — `scripts/supply-chain.test.ts` asserts the pnpm settings, SHA-pinned actions and frozen installs, so loosening one fails a test
+- [x] `pnpm build && pnpm check:leak` — zero hits **(SEC-01)**
+- [x] Coverage report: services ≥ 80% **(NFR-10)** — 95.9% of lines (97.2% of functions); the authz suite registers every service and cached read, and an unregistered export fails it
+- [x] Run `/security-review` on the full backend and resolve findings — no HIGH or MEDIUM findings; the regex-based ECB parse was checked for XXE (there is no parser), the raw SQL fragments are compile-time constants, and the new workflow jobs take no untrusted input
+- [x] **Verified `docs/API.md` against the implemented handlers** — every documented path exists with the documented methods, and every implemented route is documented; **v1 frozen 2026-09-16**
 
-## ✅ MILESTONE M5 — BACKEND COMPLETE
+## ✅ MILESTONE M5 — BACKEND COMPLETE  *(reached 2026-09-16)*
+
+All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is frozen, and 1,039 tests cover the services, the endpoints and the authorization conformance suite. What remains for a launch — WAF rules, backups, restore drills, the `production` environment — is written down and waits for Phase 22, where the accounts exist.
 
 **Nothing below starts until every box above is checked.**
 

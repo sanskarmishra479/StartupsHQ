@@ -87,6 +87,9 @@ Each fixture has a named consumer; a fixture with no consumer should not exist. 
 | `dto/*` | no `created_by`, `updated_by`, audit fields, blob prefixes or internal ids |
 | CSV parse / export | per-field errors; raw storage; formula neutralization **only in export** |
 | audit diff builder | personal-data fields recorded as `{ field, changed: true }` with no values |
+| `lib/security-headers` | admin gets a nonce and `strict-dynamic`; public gets `'self'` with no nonce and no inline script; both refuse objects, framing, foreign form targets and `<base>`; HSTS carries no `preload` |
+| `lib/error-shape` | a driver error yields only `INTERNAL`; every typed error matches its documented status; `details` only on a validation failure |
+| `db/fx-import` | euro rates re-expressed as dollars per unit; a feed with no date or no dollar rate is refused |
 
 ## 6. Integration tests — services
 
@@ -161,10 +164,10 @@ A compile-time check (`tsd` / `expectTypeOf`) asserts that a function in `src/se
 | SEC-07 | `src/server/services/import.test.ts` and `src/app/api/v1/import-endpoint.test.ts`: 1,001 rows; a `=HYPERLINK(…)` cell and a `=cmd|…` name; commit of a job nobody ran; commit after a competing insert; commit after the record was edited; commit after 24 h; an industry deleted between dry run and commit | cap enforced; values stored raw and neutralized only in `export.csv`; `404`, `IMPORT_STALE`, `IMPORT_EXPIRED`, `CONFLICT` and `422` as specified; the startup count is unchanged and the job stays `dry_run` after every refusal |
 | SEC-08 | Rate-limit integration tests + WAF config review | 121st write / min by one staff account → 429 with `Retry-After`, and a limiter outage still allows writes (fails open); 21st login attempt / 15 min from one IP → 429; 6th failure for one email → delayed response, **account still usable from another IP after the delay** (no lockout); 21st prefill / hour → 429; Upstash unavailable → login and prefill fail closed; WAF rules exist for `/api/v1/*` |
 | SEC-09 | `headers.spec.ts` against a production build, both origins | admin: nonce CSP with `strict-dynamic`, nonce differs per request; public: SRI hash CSP (or documented fallback) and page still statically cached; HSTS **without** `preload`; nosniff; Referrer-Policy; X-Frame-Options DENY |
-| SEC-10 | Role tests | `app_rw`: `CREATE TABLE` denied, `UPDATE audit_log` denied; `retention`: can only touch `audit_log`; `backup_ro`: writes denied; migrator credential absent from Vercel env listing (checklist) |
+| SEC-10 | `src/server/db/roles.test.ts` (login users created by the Vitest global setup, one per group role) | `app_rw`: `CREATE TABLE` denied, `UPDATE audit_log` denied; `retention`: can only touch `audit_log`; `backup_ro`: writes denied; migrator credential absent from Vercel env listing (checklist) |
 | SEC-11 | `audit.spec.ts` + retention job test | every mutation audited; personal fields have no values; job nulls IPs > 90 days and deletes rows > 12 months; app code has no UPDATE/DELETE path on `audit_log` |
-| SEC-12 | Forced 500 | no stack, SQL, table name or internal id in body; detail in Sentry with PII scrubbed |
-| SEC-13 | CI + `pnpm-workspace.yaml` review | frozen lockfile; `strictDepBuilds: true` and only `allowBuilds`-listed packages run build scripts; `minimumReleaseAge: 4320`; audit exceptions all carry owner + expiry; weekly `audit.yml` run succeeds |
+| SEC-12 | `src/server/lib/error-shape.test.ts` and `src/server/http/handler.test.ts` | no stack, SQL, table name or internal id in body; detail in Sentry with PII scrubbed |
+| SEC-13 | `scripts/supply-chain.test.ts` + CI | frozen lockfile; `strictDepBuilds: true` and only `allowBuilds`-listed packages run build scripts; `minimumReleaseAge: 4320`; audit exceptions all carry owner + expiry; weekly `audit.yml` run succeeds |
 | SEC-14 | `ip.spec.ts` | spoofed `X-Forwarded-For` does not change the rate-limit key or the audited IP |
 | SEC-15 | Contract tests | 21st anonymous page → `PAGINATION_DEPTH`; `limit=500` clamped to 48; public DTOs contain no admin-only fields; `robots.txt` disallows `/api/` |
 | SEC-16 | Deployment checklist | preview DB is a branch of the seed branch (no production rows); preview URL requires Vercel Authentication; production secrets not present in Preview scope |
