@@ -24,6 +24,23 @@ export const WORK_TYPE_LABELS = {
   hybrid: "Hybrid",
 } as const;
 
+export const ROUND_TYPE_LABELS = {
+  pre_seed: "Pre-seed",
+  seed: "Seed",
+  series_a: "Series A",
+  series_b: "Series B",
+  series_c: "Series C",
+  series_d: "Series D",
+  series_e: "Series E",
+  series_f: "Series F",
+  series_g: "Series G",
+  convertible: "Convertible",
+  bridge: "Bridge",
+  debt: "Debt",
+  grant: "Grant",
+  secondary: "Secondary",
+} as const;
+
 export const INVESTOR_TYPE_LABELS = {
   vc: "VC",
   accelerator: "Accelerator",
@@ -44,6 +61,8 @@ function labelFrom<Labels extends Record<string, string>>(
 export const stageLabel = (value: string) => labelFrom(STAGE_LABELS, value);
 export const workTypeLabel = (value: string) =>
   labelFrom(WORK_TYPE_LABELS, value);
+export const roundTypeLabel = (value: string) =>
+  labelFrom(ROUND_TYPE_LABELS, value);
 export const investorTypeLabel = (value: string) =>
   labelFrom(INVESTOR_TYPE_LABELS, value);
 
