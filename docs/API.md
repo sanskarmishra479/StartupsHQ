@@ -1,6 +1,6 @@
 # startupsHQ — API Contract
 
-**Status:** §6, §7 and §8.1–8.6, §8.8, §8.9 implemented; CSV import (§8.7) specified · **v1 frozen 2026-09-16** (§9) · **Version:** v1 (draft 2) · **Last updated:** 2026-09-16
+**Status:** §6, §7 and §8 implemented · **v1 frozen 2026-09-16** (§9) · **Version:** v1 (draft 2) · **Last updated:** 2026-09-16
 **Requirements authority:** [SRS.md](./SRS.md) · This document is the authority on **paths, params, DTO shapes and status codes**.
 
 > **How to read this document.** It is written **design-first**: it specifies the contract handlers must satisfy, not code that exists. TODO Phase 8 implements it; Phase 12 verifies every shape against the real handlers via the contract tests in [TEST_PLAN.md](./TEST_PLAN.md) §9. If implementation diverges, both this document and the handler are suspect — resolve deliberately.
@@ -519,7 +519,11 @@ Nothing is persisted as an entity and nothing is published.
 
 ## 8.7 CSV import *(FR-402, SEC-07)*
 
-**`POST /import/dry-run`** — `multipart/form-data`, `file` (≤ 1,000 rows). Stores the normalized rows and the file's SHA-256.
+**`POST /import/dry-run`** — `multipart/form-data`, `file` (≤ 1,000 rows, ≤ 4 MB) → `201`. Stores the normalized rows and the file's SHA-256.
+
+Columns (header names are matched ignoring case, spaces and underscores): `name` (required), `slug`, `tagline`, `description`, `websiteUrl`, `careersUrl`, `stage`, `workType`, `headcountBand`, `foundedYear`, `location` (a `locations` slug), `industries`, `founders`, `investors`. The last three are `;`-separated. **Columns we do not know are ignored**, because working spreadsheets carry notes and owners. A row reports all of its problems at once, not just the first.
+
+Each row is planned as one of: **`create`** (a new company); **`update`** — only when the row carries an explicit `slug` naming a record we hold, so a name can never silently overwrite one; **`skip`** for a slug already taken, a name too close to an existing one, or a repeat of an earlier row in the same file; **`error`** for anything that failed validation or named a location or industry that does not exist.
 
 ```json
 { "data": {
@@ -538,9 +542,11 @@ Nothing is persisted as an entity and nothing is published.
 
 Values are returned and stored raw; the React UI escapes them on render.
 
-**`POST /import/commit`** — `{ "importJobId": "b4e2…" }`. Applies the **stored** rows in one transaction after re-validating against current data. Outcomes: `200` committed (records are drafts) · `409 IMPORT_STALE` with the conflicting rows if data changed since the dry-run (run a new dry-run) · `409 IMPORT_EXPIRED` after 24 h · `409 CONFLICT` if already committed · `422` on any row failure (whole commit rolled back).
+**`POST /import/commit`** — `{ "importJobId": "b4e2…" }` → `200 { "data": { "importJobId", "created", "updated", "skipped" } }`. Applies the **stored** rows in one transaction after re-validating against current data. Outcomes: `200` committed (records are drafts) · `409 IMPORT_STALE` naming the conflicting rows if a planned slug was taken, or a record to be updated was edited, since the dry run · `409 IMPORT_EXPIRED` after 24 h · `409 CONFLICT` if already committed · `404` if the job does not exist · `422` on any row failure, naming the row (the whole commit is rolled back).
 
-**`GET /import/{importJobId}/export.csv`** — the dry-run report as CSV. Formula-prefix characters (`= + - @`, tab, CR) are neutralized **here**, on export (SEC-07).
+A committed row creates the company as a **draft**, links the industries it names (the first is primary), and resolves each founder and investor name to an existing record or creates a draft one — new investors get type `vc` for an editor to correct. An `update` row changes the company's own fields and its industries; founder and investor links are left to §8.3, so an import cannot quietly duplicate them.
+
+**`GET /import/{importJobId}/export.csv`** — the dry-run report as CSV (`row, action, name, slug, reason, errors`), served as an attachment. Formula-prefix characters (`= + - @`, tab, CR) are neutralized **here**, on export (SEC-07); stored values keep whatever the file contained.
 
 ## 8.8 Users *(admin only, FR-208)*
 

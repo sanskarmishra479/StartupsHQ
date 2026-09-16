@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 10 complete — Phase 11 (CSV bulk import) next · **Last updated:** 2026-09-16
+**Status:** Phase 11 complete — Phase 12 (backend hardening & verification) next · **Last updated:** 2026-09-16
 
 ---
 
@@ -255,15 +255,15 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 11 · CSV bulk import  *(FR-402, SEC-07)*
 
-- [ ] `services/import.ts` — papaparse, 1,000-row cap, per-row Zod collecting all errors
-- [ ] Duplicate detection: slug, then batched trigram query (> 0.85)
-- [ ] Dry-run stores normalized rows + SHA-256; `expires_at` = +24 h
-- [ ] Commit uses stored rows, re-validates inside the transaction → `IMPORT_STALE` on conflicts; single transaction; drafts; `import_jobs` updated
-- [ ] Raw value storage; **formula neutralization only in `export.csv`**
-- [ ] Endpoints: dry-run, commit, export
-- [ ] Tests per SEC-07 matrix; fixture CSV in `scripts/fixtures/`
+- [x] `services/import.ts` — papaparse, 1,000-row cap, per-row Zod collecting all errors
+- [x] Duplicate detection: slug, then batched trigram query (> 0.85) — one VALUES-list query for the whole file, not one per row; measured behaviour recorded in SRS FR-402
+- [x] Dry-run stores normalized rows + SHA-256; `expires_at` = +24 h
+- [x] Commit uses stored rows, re-validates inside the transaction → `IMPORT_STALE` on conflicts; single transaction; drafts; `import_jobs` updated. Expiry is marked outside the transaction, since that write must outlive the refusal it accompanies
+- [x] Raw value storage; **formula neutralization only in `export.csv`**
+- [x] Endpoints: dry-run, commit, export
+- [x] Tests per SEC-07 matrix; fixture CSV in `scripts/fixtures/startups-import-sample.csv`
 
-**EXIT:** reviewed import commits cleanly · a conflicting edit between dry-run and commit aborts with zero rows written.
+**EXIT:** ✅ a reviewed import commits cleanly · every refusal — a competing insert, an edit to a target, expiry, a row that cannot be applied — leaves the startup count unchanged and the job open for a fresh dry run.
 
 ---
 

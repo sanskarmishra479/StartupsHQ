@@ -43,7 +43,13 @@ export type RouteResult =
   | Readonly<{ kind: "page"; page: Page<unknown> }>
   | Readonly<{ kind: "body"; body: unknown }>
   | Readonly<{ kind: "redirect"; path: string }>
-  | Readonly<{ kind: "no-content" }>;
+  | Readonly<{ kind: "no-content" }>
+  | Readonly<{
+      kind: "file";
+      body: string;
+      contentType: string;
+      filename: string;
+    }>;
 
 /** `200 { data }` */
 export const resource = (data: unknown): RouteResult => ({
@@ -59,6 +65,13 @@ export const created = (data: unknown): RouteResult => ({
 
 /** `204` */
 export const noContent = (): RouteResult => ({ kind: "no-content" });
+
+/** A downloadable document, offered as an attachment rather than rendered. */
+export const file = (
+  body: string,
+  contentType: string,
+  filename: string,
+): RouteResult => ({ kind: "file", body, contentType, filename });
 
 /** `200 { data, pagination }` */
 export const collection = (page: Page<unknown>): RouteResult => ({
@@ -127,6 +140,14 @@ export function toResponse(result: RouteResult, url: URL): Response {
       return Response.json(result.body);
     case "no-content":
       return new Response(null, { status: 204 });
+    case "file":
+      return new Response(result.body, {
+        headers: {
+          "Content-Type": result.contentType,
+          // The filename is ours, never a caller's, so it needs no escaping beyond quoting.
+          "Content-Disposition": `attachment; filename="${result.filename.replace(/["\\]/g, "")}"`,
+        },
+      });
     case "redirect":
       // Always a same-origin path: the slug comes from our own database.
       if (!result.path.startsWith("/") || result.path.startsWith("//")) {

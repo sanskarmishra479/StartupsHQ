@@ -23,6 +23,7 @@ import * as batches from "./batches";
 import * as categoryWrites from "./category-writes";
 import * as founderWrites from "./founder-writes";
 import * as founders from "./founders";
+import * as importService from "./import";
 import * as investorWrites from "./investor-writes";
 import * as investors from "./investors";
 import * as lifecycle from "./lifecycle";
@@ -390,6 +391,23 @@ const REGISTRY: AuthzRegistry = {
         await fixtureId(startupsTable, "stealth-draft-co"),
       ),
     seesDraft: (result) => (result as { status?: string }).status === "draft",
+  },
+  // CSV import (FR-402). A one-row file: authorized callers get a dry run, nobody else does.
+  "services/import.ts#dryRun": {
+    kind: "mutation",
+    invoke: (ctx) =>
+      importService.dryRun(ctx, {
+        filename: "authz.csv",
+        bytes: Buffer.from("name\nAuthz Probe Company\n"),
+      }),
+  },
+  "services/import.ts#commit": {
+    kind: "mutation",
+    invoke: (ctx) => importService.commit(ctx, { importJobId: NIL_UUID }),
+  },
+  "services/import.ts#exportReport": {
+    kind: "mutation",
+    invoke: (ctx) => importService.exportReport(ctx, NIL_UUID),
   },
   // Media (FR-408, FR-111). A 1x1 PNG is the smallest thing the pipeline accepts.
   "services/media.ts#upload": {

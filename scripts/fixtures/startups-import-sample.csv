@@ -1,0 +1,5 @@
+name,slug,tagline,description,websiteUrl,stage,workType,headcountBand,foundedYear,location,industries,founders,investors
+Northwind Looms,,Textile automation for small mills.,Looms that schedule themselves.,https://northwind-looms.example/,seed,hybrid,11-50,2021,berlin-de,robotics;devtools,Ada Weaver;Tomasz Wróbel,Northwind Ventures
+Glasshouse Grocers,,Indoor farms inside supermarkets.,,https://glasshouse-grocers.example/,pre_seed,onsite,1-10,2023,london-gb,climate,Rosa Green,
+Kiln Analytic,,A name close to an existing company.,,https://kiln-analytic.example/,seed,remote,11-50,2022,berlin-de,devtools,,
+Harbour Ledger,,Missing a website and a stage on purpose.,,,not_a_stage,remote,11-50,1780,nowhere-xx,,,

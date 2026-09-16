@@ -187,6 +187,9 @@ importers:
       next:
         specifier: 16.3.4
         version: 16.3.4(@playwright/test@1.63.0)(@types/node@24.13.4)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      papaparse:
+        specifier: 5.7.0
+        version: 5.7.0
       pg:
         specifier: ^8.23.0
         version: 8.23.0
@@ -227,6 +230,9 @@ importers:
       '@types/node':
         specifier: ^24
         version: 24.13.4
+      '@types/papaparse':
+        specifier: 5.5.2
+        version: 5.5.2
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
@@ -1344,6 +1350,9 @@ packages:
   '@types/node@24.13.4':
     resolution: {integrity: sha512-YJ7EqCstVTzIr0fMr7qul/977en+pQHrfmuKIo6Zr9i75Be21dr3MovcfvGtyvi2HAUrRerWps5sMO9I7WaxDw==}
 
+  '@types/papaparse@5.5.2':
+    resolution: {integrity: sha512-gFnFp/JMzLHCwRf7tQHrNnfhN4eYBVYYI897CGX4MY1tzY9l2aLkVyx2IlKZ/SAqDbB3I1AOZW5gTMGGsqWliA==}
+
   '@types/pg@8.23.1':
     resolution: {integrity: sha512-fKVHpikPdg4GKks3JuLEhvwSyvwzF23hnabPy6DD8ljVbC7+6J5dQzdv4arV6jqq57djnMgs1HKBxX4P8aBI3A==}
 
@@ -1983,6 +1992,9 @@ packages:
   os-paths@4.4.0:
     resolution: {integrity: sha512-wrAwOeXp1RRMFfQY8Sy7VaGVmPocaLwSFOYCGKSyo8qmJ+/yaafCl5BCA1IQZWqFSRBrKDYFeR9d/VyQzfH/jg==}
     engines: {node: '>= 6.0'}
+
+  papaparse@5.7.0:
+    resolution: {integrity: sha512-qBGxg/7Q3Kl9Wfhrz2Z74UnvnHTXLNG6jmKJFeBvP2+y4lV7So+7SR62+Zd47JvdrCkX+nDcnr0ObPzek/+6RA==}
 
   parse5-htmlparser2-tree-adapter@7.1.0:
     resolution: {integrity: sha512-ruw5xyKs6lrpo9x9rCZqZZnIUntICjQAd0Wsmp396Ul9lN/h+ifgVV1x1gZHi8euej6wTfpqX8j+BFQxF0NS/g==}
@@ -3018,6 +3030,10 @@ snapshots:
     dependencies:
       undici-types: 7.18.2
 
+  '@types/papaparse@5.5.2':
+    dependencies:
+      '@types/node': 24.13.4
+
   '@types/pg@8.23.1':
     dependencies:
       '@types/node': 24.13.4
@@ -3562,6 +3578,8 @@ snapshots:
       mimic-fn: 2.1.0
 
   os-paths@4.4.0: {}
+
+  papaparse@5.7.0: {}
 
   parse5-htmlparser2-tree-adapter@7.1.0:
     dependencies:
