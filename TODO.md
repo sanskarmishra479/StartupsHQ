@@ -269,7 +269,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 12 · Backend hardening & verification
 
-- [x] **CSP split (SEC-09):** admin nonce CSP via `proxy.ts`; **`[?]` resolved — `experimental.sri` works**: `sha256` integrity is stamped on every emitted script and `/` and `/robots.txt` still build as static, so the public origin needs no nonce. Directives live in `src/lib/security-headers.ts` with unit tests; `proxy.ts` puts them on every answer, including refusals and redirects, and forwards the admin nonce as `x-nonce` for pages to use
+- [x] **CSP split (SEC-09):** admin nonce CSP via `proxy.ts`; **`[?]` resolved — `experimental.sri` works**: `sha256` integrity is stamped on every emitted script and `/` and `/robots.txt` still build as static, so the public origin needs no nonce. *Corrected in Phase 13 (ADR-022): SRI does not cover the inline React payload scripts, so the public policy adds `'unsafe-inline'`.* Directives live in `src/lib/security-headers.ts` with unit tests; `proxy.ts` puts them on every answer, including refusals and redirects, and forwards the admin nonce as `x-nonce` for pages to use
 - [x] Other headers on both origins; **HSTS without `preload`** **(SEC-19)** — HSTS in `next.config.ts` (identical on both origins), asserted in `src/lib/security-headers.test.ts`
 - [x] WAF rule definitions written down (thresholds, keys, bot challenge) for Phase 22 **(SEC-08)** — ARCHITECTURE §8: six rules with match, action and reasoning; thresholds are opening positions to tune from real traffic
 - [x] Upstash fail-closed behaviour verified for login and prefill — `login-limits.test.ts` ("store unavailable") and `prefill.test.ts` ("fails closed when the limiter is unavailable"); the write budget deliberately fails **open** and is tested that way
@@ -324,7 +324,7 @@ All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is fr
 - [ ] Responsive at 360 / 768 / 1280 / 2560
 - [ ] Development-only components gallery, both themes, axe-checked
 - [ ] `[?]` Curved-grid spike (OGL): endless wrap, visible-only textures, mouse + touch inertia, flat fallback; measure bundle, FPS desktop + mid-range phone; verify Blob CORS for textures
-- [ ] Docs: PRD §2, SRS §6.1 (`/` landing, `/companies` grid), ADR-022
+- [ ] Docs: PRD §2, SRS §6.1 (`/` landing, `/companies` grid), ADR-023 (immersive landing as progressive enhancement)
 
 **EXIT:** components gallery in both themes · axe clean · curved-grid spike measured.
 
@@ -368,6 +368,9 @@ All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is fr
 **EXIT:** misspellings and diacritic-free queries find results · keyboard-only operable · suggest p95 ≤ 150 ms.
 
 ## Phase 18 · Admin UI  *(FR-201 … FR-210)* — admin origin only
+
+- [ ] **Hydration under the nonce CSP:** Next.js stamps its nonce only when it can read the policy from the *request* headers; `proxy.ts` forwards `x-nonce` alone today. Verify an admin page hydrates against a production build with no CSP violation, and give the root layout's inline theme script the nonce (found in Phase 13, ADR-022)
+- [ ] Icons and brand files on the admin host: host routing serves only `/admin`, `/api` and `/_next` there, so `/favicon.ico` and `/icon.svg` 404
 
 - [ ] Login → **2FA enrollment / challenge**; recovery codes UI; password reset
 - [ ] Dashboard: counts, drafts, recent audit, pending imports

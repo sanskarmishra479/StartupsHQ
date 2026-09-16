@@ -28,10 +28,16 @@ describe("the content security policy", () => {
     );
   });
 
-  it("gives the public origin same-origin scripts and no inline, so pages stay cacheable", () => {
-    expect(web.get("script-src")).toBe("'self'");
+  it("gives the public origin same-origin and inline scripts and no nonce, so pages stay cacheable (ADR-022)", () => {
+    // Next.js hands each page's React payload over in inline scripts; without them nothing
+    // hydrates. Acceptable only because no credential is valid on the public origin.
+    expect(web.get("script-src")).toBe("'self' 'unsafe-inline'");
     expect(web.get("script-src")).not.toContain("nonce");
-    expect(web.get("script-src")).not.toContain("unsafe-inline");
+    expect(web.get("script-src")).not.toContain("strict-dynamic");
+  });
+
+  it("never allows inline scripts on the admin origin without its nonce", () => {
+    expect(admin.get("script-src")).not.toContain("unsafe-inline");
   });
 
   it.each([

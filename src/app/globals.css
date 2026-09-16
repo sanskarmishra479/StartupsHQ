@@ -4,7 +4,7 @@
  * Design tokens (TODO Phase 13; NFR-04, NFR-06).
  *
  * Dark is the default look. A viewer's choice is stored by the theme toggle and applied to
- * <html data-theme> before first paint by /theme.js:
+ * <html data-theme> before first paint by THEME_INIT_SCRIPT (src/lib/theme.ts):
  *   (none) | "dark"  → dark
  *   "light"          → light
  *   "system"         → follows prefers-color-scheme

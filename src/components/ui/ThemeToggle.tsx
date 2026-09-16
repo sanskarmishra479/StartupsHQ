@@ -56,7 +56,7 @@ const OPTIONS = [
 
 /**
  * Dark, light or system (NFR-06). Persisted per viewer in localStorage, never a cookie, so public
- * pages stay static; /theme.js applies it before paint on the next load.
+ * pages stay static; THEME_INIT_SCRIPT applies it before paint on the next load.
  */
 export function ThemeToggle({ className }: Readonly<{ className?: string }>) {
   // The server cannot know the stored theme, so nothing is pressed until hydration.

@@ -371,7 +371,7 @@ Each ADR is immutable once accepted. To change a decision, add a new ADR that su
 **Revisit if:** Next.js changes `'use cache'` key derivation or invalidation semantics.
 
 ### ADR-014 — Separate admin origin; nonce CSP on admin, hash-based CSP on public
-**Status:** Accepted · 2026-09-14
+**Status:** Accepted · 2026-09-14 · *Amended by ADR-022: the public origin runs the fallback policy*
 
 **Context.** A nonce-based CSP forces dynamic rendering of every page, disabling ISR and CDN caching and raising cost. But a weak public CSP matters if editor sessions are valid on the same origin as public pages.
 **Decision.** Admin UI, auth and all writes live on `admin.startupshq.space` with a host-only session cookie. The admin origin uses a strict nonce CSP (it is dynamic anyway). The public origin uses hash-based CSP via Next.js `experimental.sri`; if unworkable, a CSP without script nonces that still enforces `object-src`, `base-uri`, `form-action`, `frame-ancestors` and image origins. CSRF is enforced by origin checks on every non-GET.
@@ -428,6 +428,15 @@ Each ADR is immutable once accepted. To change a decision, add a new ADR that su
 **Decision.** Source code and documentation are public. On public repositories GitHub Free provides environments with required reviewers, environment secrets, branch protection, secret scanning with push protection, and free standard-runner Actions minutes. The threat model assumes attackers can read the code, schema, endpoint list and these documents; **no security property may depend on their secrecy**. Repository hygiene per SEC-20.
 **Consequences.** (+) ADR-015 works at no cost; free CI; free secret scanning. (−) The authorization model and schema are visible to attackers — acceptable because enforcement is structural (ADR-003, ADR-013, ADR-014), but it raises the stakes of SEC-20. Fork pull requests become an attack path into CI, hence SHA-pinned actions, read-only default permissions, approval for fork workflows and no `pull_request_target`. Competitors can read the product plan. Without a LICENSE the code is all-rights-reserved but still copyable in practice. The curated data — the actual moat — never lives in the repository, and neither does private operational material (watermark list, real `.env` values, backups, legal correspondence).
 **Revisit if:** the repository must become private again — then required reviewers need GitHub Enterprise, or ADR-015 falls back to manually triggered migrations with repository secrets.
+
+### ADR-022 — Inline scripts allowed on the public origin
+**Status:** Accepted · 2026-09-16 · *Amends ADR-014*
+
+**Context.** The Phase 12 spike judged `experimental.sri` sufficient from the build output: every emitted script file carried an `integrity` hash and pages still prerendered as static. It did not load a page in a browser. Phase 13 did, and found that Next.js also writes several **inline** scripts into every page (`self.__next_f.push(…)`, the React Server Components payload). `script-src 'self'` blocks them, React fails to hydrate (minified error #412), and no client component works — theme toggle, WebGL landing, load more, ⌘K search. SRI covers files only; the inline payload differs per page and changes on every revalidation, so no hash list in a header can name it, and a nonce needs per-request rendering.
+**Decision.** Take the fallback ADR-014 recorded: the public origin sends `script-src 'self' 'unsafe-inline'`. Everything else stays: `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`, `frame-ancestors 'none'`, `connect-src 'self'`, images only from ourselves and Blob, and SRI on script files. The admin origin keeps its nonce and `'strict-dynamic'`, under which `'unsafe-inline'` would be ignored anyway; it is not added there.
+**Alternatives rejected.** *Nonces on the public origin* — every public page rendered per request: no static prerendering or CDN caching (ADR-013), higher cost, slower first byte. *No client JavaScript on the public origin* — drops the immersive landing, theming, search and paging the product needs.
+**Consequences.** (+) Public pages stay static and cheap, and hydrate. The theme can be applied by a small inline script before paint, with no extra request. (−) An HTML-injection bug on the public origin could run script. The exposure is bounded by ADR-014's structure: no session, cookie or credential is valid on the public origin, writes are refused there, and there is nothing to exfiltrate that the public API does not already serve. React escapes all rendered text, and no public content is rendered as raw HTML; any future `dangerouslySetInnerHTML` on a public page needs a review against this ADR.
+**Revisit if:** Next.js can externalise the RSC payload or hash it into a static policy, nonces stop forcing dynamic rendering, or anything credential-bearing ever has to be served on the public origin.
 
 ---
 

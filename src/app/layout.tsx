@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,17 +21,20 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    // data-theme is set before paint by /theme.js, so React must not treat it as a mismatch.
+    // data-theme is set before paint by the inline script, so React must not call it a mismatch.
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>
-        {/* Parser-blocking on purpose: the saved theme must apply before first paint. It is a
-            same-origin file because the public CSP forbids inline scripts (SEC-09). The admin
-            origin's nonce policy blocks it; the admin layout applies the theme itself (Phase 18). */}
-        <script src="/theme.js" />
+        {/* Runs while the page parses, before first paint. The public CSP allows inline scripts
+            (ADR-022); the admin origin's nonce policy blocks this one until the admin layout
+            passes its nonce (Phase 18). */}
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: a constant from src/lib/theme.ts, no input.
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
       </head>
       <body className="flex min-h-full flex-col bg-bg text-fg">{children}</body>
     </html>

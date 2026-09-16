@@ -4,8 +4,10 @@
 // The two origins get different script policies, deliberately (ADR-014):
 //   admin  — dynamic anyway, so every response carries a fresh nonce and 'strict-dynamic'.
 //   public — statically cached, so a per-request nonce is impossible without giving up caching.
-//            Next.js is configured with `experimental.sri`, which stamps an integrity hash on the
-//            scripts it emits, and the policy allows only same-origin scripts with no inline.
+//            Next.js stamps an integrity hash on the script files it emits (`experimental.sri`),
+//            but it also writes inline scripts carrying each page's React payload, and those no
+//            static policy can name. Inline scripts are therefore allowed here (ADR-022, the
+//            fallback ADR-014 foresaw): no session or credential is valid on this origin.
 // Both refuse objects, framing, foreign form targets and `<base>` rewriting, which is what stops
 // the injection routes a directory site actually faces.
 
@@ -35,7 +37,11 @@ export function contentSecurityPolicy(audience: CspAudience): string {
         "'strict-dynamic'",
         audience.development ? "'unsafe-eval'" : "",
       ]
-    : ["'self'", audience.development ? "'unsafe-eval'" : ""];
+    : [
+        "'self'",
+        "'unsafe-inline'",
+        audience.development ? "'unsafe-eval'" : "",
+      ];
 
   const directives = [
     "default-src 'self'",

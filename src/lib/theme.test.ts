@@ -1,18 +1,16 @@
-import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
-import { DEFAULT_THEME, isTheme, THEME_STORAGE_KEY, THEMES } from "./theme";
-
-// public/theme.js runs before the app's own code, so it cannot import these constants. This keeps
-// the two in step.
-const script = readFileSync(
-  new URL("../../public/theme.js", import.meta.url),
-  "utf8",
-);
+import {
+  DEFAULT_THEME,
+  isTheme,
+  THEME_INIT_SCRIPT,
+  THEME_STORAGE_KEY,
+  THEMES,
+} from "./theme";
 
 function applied(stored: string | null | Error): string | null {
   const attributes = new Map<string, string>();
-  runInNewContext(script, {
+  runInNewContext(THEME_INIT_SCRIPT, {
     localStorage: {
       getItem(key: string) {
         if (stored instanceof Error) throw stored;
@@ -29,7 +27,7 @@ function applied(stored: string | null | Error): string | null {
   return attributes.get("data-theme") ?? null;
 }
 
-describe("public/theme.js", () => {
+describe("THEME_INIT_SCRIPT", () => {
   it.each(
     THEMES.filter((theme) => theme !== DEFAULT_THEME),
   )("applies a stored %s theme", (theme) => {
