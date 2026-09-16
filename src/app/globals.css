@@ -214,6 +214,19 @@
   }
 }
 
+/* The explore grid's static fallback, hidden behind a skeleton when the URL is filtered. */
+[data-explore-skeleton] {
+  display: none;
+}
+
+[data-explore-pending] [data-explore-fallback] {
+  display: none;
+}
+
+[data-explore-pending] [data-explore-skeleton] {
+  display: grid;
+}
+
 @utility meta {
   font-family: var(--font-mono);
   font-size: var(--text-meta);
