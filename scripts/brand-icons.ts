@@ -6,17 +6,16 @@ import { MARK_ARTBOARD, MARK_PARTS } from "../src/components/brand/mark";
 //
 //   pnpm brand:icons
 //
-//   src/app/icon.svg        transparent, recoloured for dark browser chrome
-//   src/app/favicon.ico     16, 32 and 48 px, on the brand's white tile
+//   src/app/icon.svg        on the brand's white tile, so the tab icon reads on light and dark chrome
+//   src/app/favicon.ico     16, 32 and 48 px, on the same tile
 //   src/app/apple-icon.png  180 px, on the brand's white tile (iOS rounds the corners)
 //
 // Generated rather than copied from public/brand/ so no editor or provenance metadata from the
 // source files is served with every page, and so the icons cannot drift from the inline logo.
 
 /** Solid and grey halves: the source file's near-black, and the middle of its grey gradient. */
-const LIGHT = { solid: "#0d0d0d", tint: "#c8c8c8" };
-/** Browser chrome in dark mode: the dark theme's foreground and a grey that reads beside it. */
-const DARK = { solid: "#f5f5f5", tint: "#6e6e6e" };
+const SOLID = "#0d0d0d";
+const TINT = "#c8c8c8";
 
 const shapes = MARK_PARTS.map(
   ({ tone, rects }) =>
@@ -28,17 +27,8 @@ const shapes = MARK_PARTS.map(
       .join("")}</g>`,
 ).join("");
 
-function svg(options: { tile: boolean; adaptive: boolean }): string {
-  const tones = (t: typeof LIGHT) =>
-    `.solid{fill:${t.solid}}.tint{fill:${t.tint}}`;
-  const style = `<style>${tones(LIGHT)}${
-    options.adaptive ? `@media (prefers-color-scheme:dark){${tones(DARK)}}` : ""
-  }</style>`;
-  const tile = options.tile
-    ? `<rect width="${MARK_ARTBOARD}" height="${MARK_ARTBOARD}" fill="#ffffff"/>`
-    : "";
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MARK_ARTBOARD} ${MARK_ARTBOARD}">${style}${tile}${shapes}</svg>\n`;
-}
+/** The mark centred on a white square, as in the owner's source file. */
+const tiled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MARK_ARTBOARD} ${MARK_ARTBOARD}"><style>.solid{fill:${SOLID}}.tint{fill:${TINT}}</style><rect width="${MARK_ARTBOARD}" height="${MARK_ARTBOARD}" fill="#ffffff"/>${shapes}</svg>\n`;
 
 /** An .ico holding PNG images, which every current browser reads. */
 function ico(images: readonly { size: number; png: Buffer }[]): Buffer {
@@ -69,8 +59,7 @@ const png = (source: string, size: number) =>
     .toBuffer();
 
 async function main(): Promise<void> {
-  const tiled = svg({ tile: true, adaptive: false });
-  writeFileSync("src/app/icon.svg", svg({ tile: false, adaptive: true }));
+  writeFileSync("src/app/icon.svg", tiled);
   writeFileSync(
     "src/app/favicon.ico",
     ico(
