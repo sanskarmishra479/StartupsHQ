@@ -216,8 +216,8 @@ export async function resetTwoFactor(
   try {
     await sendEmail({
       to: result.email,
-      subject: "Your startupsHQ two-factor authentication was reset",
-      text: "An administrator reset the two-factor authentication on your startupsHQ account.\n\nYou have been signed out everywhere. The next time you sign in you will set up an authenticator app again.\n\nIf you were not expecting this, contact an administrator immediately.",
+      subject: "Your StartupsHQ two-factor authentication was reset",
+      text: "An administrator reset the two-factor authentication on your StartupsHQ account.\n\nYou have been signed out everywhere. The next time you sign in you will set up an authenticator app again.\n\nIf you were not expecting this, contact an administrator immediately.",
     });
   } catch (error) {
     // The reset has already happened; a delivery failure must not suggest otherwise.

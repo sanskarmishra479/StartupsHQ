@@ -185,7 +185,7 @@ describe("category copy (FR-205)", () => {
     expect(await getPage(anonymous, "work-type", "remote")).toMatchObject({
       heading: "Remote-first startups",
       intro: "Teams that work from anywhere.",
-      seoTitle: "Remote-first startups | startupsHQ",
+      seoTitle: "Remote-first startups | StartupsHQ",
       isGenerated: false,
     });
     expect(expired()).toEqual(

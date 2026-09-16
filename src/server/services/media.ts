@@ -458,7 +458,7 @@ async function renderOgPng(
     createElement(
       "div",
       { style: { fontSize: 30, color: "#7c8798", letterSpacing: "0.04em" } },
-      "startupsHQ",
+      "StartupsHQ",
     ),
   );
 

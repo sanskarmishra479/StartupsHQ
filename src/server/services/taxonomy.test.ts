@@ -26,7 +26,7 @@ describe("taxonomy.getPage", () => {
       slug: "ai",
       heading: "AI startups",
       intro: "Companies building with machine learning.",
-      seoTitle: "AI Startups | startupsHQ",
+      seoTitle: "AI Startups | StartupsHQ",
       isGenerated: false,
       isIndexable: true,
       companyCount: 8,
@@ -38,7 +38,7 @@ describe("taxonomy.getPage", () => {
     expect(await getPage(anonymous, "stages", "seed")).toMatchObject({
       heading: "Seed-stage startups",
       intro: null,
-      seoTitle: "Seed-stage startups | startupsHQ",
+      seoTitle: "Seed-stage startups | StartupsHQ",
       isGenerated: false,
       companyCount: 6,
     });
@@ -48,9 +48,9 @@ describe("taxonomy.getPage", () => {
     expect(await getPage(anonymous, "work-type", "remote")).toMatchObject({
       heading: "Remote startups",
       intro: null,
-      seoTitle: "Remote startups | startupsHQ",
+      seoTitle: "Remote startups | StartupsHQ",
       seoDescription:
-        "Remote startups: funding rounds, founders and investors on startupsHQ.",
+        "Remote startups: funding rounds, founders and investors on StartupsHQ.",
       isGenerated: true,
       isIndexable: true,
       companyCount: 8,

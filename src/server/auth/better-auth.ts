@@ -108,7 +108,7 @@ function createAuth(env: Env, db: Database) {
   const redis = () => getRedis(env);
 
   return betterAuth({
-    appName: "startupsHQ",
+    appName: "StartupsHQ",
     baseURL,
     secret,
     trustedOrigins: [adminOrigin(env)],
@@ -141,13 +141,13 @@ function createAuth(env: Env, db: Database) {
           isInviteLink(url)
             ? {
                 to: user.email,
-                subject: "You have been invited to startupsHQ",
-                text: `An administrator invited you to the startupsHQ admin panel.\n\nSet your password within the hour:\n${url}\n\nYou will then set up two-factor authentication, which every account needs. If the link has expired, ask an administrator to invite you again.`,
+                subject: "You have been invited to StartupsHQ",
+                text: `An administrator invited you to the StartupsHQ admin panel.\n\nSet your password within the hour:\n${url}\n\nYou will then set up two-factor authentication, which every account needs. If the link has expired, ask an administrator to invite you again.`,
               }
             : {
                 to: user.email,
-                subject: "Reset your startupsHQ password",
-                text: `Someone asked to reset the password for this startupsHQ account.\n\nReset it here within an hour:\n${url}\n\nIf this was not you, ignore this email; your password is unchanged.`,
+                subject: "Reset your StartupsHQ password",
+                text: `Someone asked to reset the password for this StartupsHQ account.\n\nReset it here within an hour:\n${url}\n\nIf this was not you, ignore this email; your password is unchanged.`,
               },
         );
       },
@@ -221,7 +221,7 @@ function createAuth(env: Env, db: Database) {
     },
     plugins: [
       twoFactor({
-        issuer: "startupsHQ",
+        issuer: "StartupsHQ",
         backupCodeOptions: {
           amount: 10,
           length: 10,

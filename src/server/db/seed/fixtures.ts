@@ -355,7 +355,7 @@ export const REDIRECTS: { entityType: "startup"; oldSlug: string; entity: string
 // ── Taxonomy copy: industries and stages only, so work types exercise the generated fallback ─
 
 export const TAXONOMY: Insert<typeof taxonomyPages>[] = [
-  { kind: "industry", slug: "ai", heading: "AI startups", intro: "Companies building with machine learning.", seoTitle: "AI Startups | startupsHQ", sortOrder: 1 },
+  { kind: "industry", slug: "ai", heading: "AI startups", intro: "Companies building with machine learning.", seoTitle: "AI Startups | StartupsHQ", sortOrder: 1 },
   { kind: "industry", slug: "fintech", heading: "Fintech startups", intro: "Payments, treasury and financial infrastructure.", sortOrder: 2 },
   { kind: "industry", slug: "climate", heading: "Climate startups", intro: "Energy, water and emissions.", sortOrder: 3 },
   { kind: "stage", slug: "seed", heading: "Seed-stage startups", sortOrder: 1 },

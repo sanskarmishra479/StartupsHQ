@@ -95,10 +95,10 @@ export function toCategoryPage(args: {
     heading,
     intro: copy?.intro ?? null,
     iconUrl: copy?.iconUrl ?? facet.iconUrl,
-    seoTitle: copy?.seoTitle ?? `${heading} | startupsHQ`,
+    seoTitle: copy?.seoTitle ?? `${heading} | StartupsHQ`,
     seoDescription:
       copy?.seoDescription ??
-      `${heading}: funding rounds, founders and investors on startupsHQ.`,
+      `${heading}: funding rounds, founders and investors on StartupsHQ.`,
     isGenerated: copy === undefined,
     isIndexable: companyCount >= MIN_INDEXABLE_COMPANIES,
     companyCount,
