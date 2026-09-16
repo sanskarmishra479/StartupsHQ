@@ -112,7 +112,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [x] `src/server/db/derived.ts` — the one implementation of derived totals, counting **published** rounds only (an unpublished amount must never leak through a public total); used by the seed now and the rounds service in Phase 5
 - [ ] Neon **seed-data branch** for previews (SEC-16) — created in Phase 22 with `SEED_CONFIRM_DATABASE=<branch db> pnpm db:seed`
 
-**EXIT:** seeding twice yields identical state · every fixture queryable · totals match (published equity + convertible only).
+**EXIT:** ✅ seeding twice yields identical state · every fixture queryable · totals match (published equity + convertible only) — all three asserted in `src/server/db/seed/seed.test.ts`.
 
 ---
 
@@ -181,10 +181,10 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 - [x] `auth/better-auth.ts` — Drizzle adapter, email + password (scrypt default), **two-factor (TOTP) plugin, mandatory**, 10 recovery codes. Better Auth's 2FA is opt-in, so enforcement is ours: `requireEditor()` refuses users without `two_factor_enabled`, and first login forces enrollment — sign-up closed; plugin account lockout disabled (SEC-08)
 - [x] **Spike: cookie prefix.** Verify whether Better Auth can emit a `__Host-` cookie on the admin origin. If yes, use it; if not, `__Secure-` with **no `Domain` attribute** (host-only). Record the outcome in SRS SEC-04. — **`__Host-` works** (2026-09-15): Better Auth's own prefix disabled, cookie named `__Host-startupshq.*` with Secure, Path=/, no Domain; verified in `auth-flow.test.ts`
-- [ ] Sessions: httpOnly, Secure, SameSite=Lax, rotation on privilege change, server-side revocation — all done and tested except **rotation on privilege change**, which lands with role changes in the users service (FR-208)
+- [x] Sessions: httpOnly, Secure, SameSite=Lax, rotation on privilege change, server-side revocation — completed in Phase 8c: a role change, a two-factor reset and a deactivation each delete that user's sessions (`services/users.ts`), asserted in `admin-endpoints.test.ts`
 - [x] Better Auth rate limiter → Upstash secondary storage (in-memory does not work on serverless) — as `rateLimit.customStorage`, not `secondaryStorage`: the latter would move **sessions** into Redis, so an outage would sign everyone out
 - [x] Login limits: 20 / 15 min per IP; progressive delay per email after 5 failures; **no lockout**; fail closed if Upstash unavailable — `auth/login-limits.ts`; local and CI store is Redis + serverless-redis-http in `docker-compose.yml` (decided 2026-09-15)
-- [ ] Transactional email provider: invites, password reset, 2FA reset notices **(FR-201, FR-208)** — **Resend** (decided 2026-09-15), `lib/email.ts`; password reset wired; invites and 2FA-reset notices land with the users service
+- [x] Transactional email provider: invites, password reset, 2FA reset notices **(FR-201, FR-208)** — **Resend** (decided 2026-09-15), `lib/email.ts`; all three wired, the invite and reset-notice wording added in Phase 8c
 - [x] `getSessionContext()` → `RequestContext`; unverifiable or 2FA-incomplete ⇒ `publicContext()` — `auth/session.ts` (`getSessionStatus` also reports `enrollment-required`)
 - [x] `requireEditor()` / `requireAdmin()` handler helpers (layer 2)
 - [x] **`src/proxy.ts`** (not `middleware.ts`) — host routing: `/admin/*`, `/api/auth/*`, non-GET `/api/v1/*` only on the admin host; session gate for `/admin/*` (layer 1) — rules in pure `src/lib/host-routing.ts`: any host other than the admin host is public (fails closed, incl. preview hosts and missing config); paths decoded and lowercased before matching; the admin host serves only `/admin`, `/api/auth`, `/api/v1` and `/_next` (`/` → `/admin`, else 404) with `X-Robots-Tag: noindex`
@@ -283,9 +283,16 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## ✅ MILESTONE M5 — BACKEND COMPLETE  *(reached 2026-09-16)*
 
-All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is frozen, and 1,039 tests cover the services, the endpoints and the authorization conformance suite. What remains for a launch — WAF rules, backups, restore drills, the `production` environment — is written down and waits for Phase 22, where the accounts exist.
+All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is frozen, and 1,039 tests cover the services, the endpoints and the authorization conformance suite.
 
-**Nothing below starts until every box above is checked.**
+**Two boxes above stay open, and both need accounts that do not exist yet** — they are the only exceptions to the rule below, and both belong to Phase 22:
+
+| Open box | Phase | Why it cannot be done now |
+|---|---|---|
+| `production` environment with a required reviewer | 0 (SEC-20) | A GitHub environment is only useful once it holds production secrets; creating an empty one now would protect nothing |
+| Neon **seed-data branch** for previews | 2 (SEC-16) | Needs a Neon project, which is created with the paid tiers at launch |
+
+**Nothing else below starts until every box above is checked.**
 
 ---
 
