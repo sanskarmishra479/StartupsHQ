@@ -30,7 +30,10 @@ const round = (
 
 describe("startupCorner", () => {
   it("shows the latest disclosed amount and its year", () => {
-    expect(startupCorner(card({ latestRound: round() }))).toBe("$12M · 2025");
+    expect(startupCorner(card({ latestRound: round() }))).toEqual({
+      main: "$12M",
+      detail: "2025",
+    });
   });
 
   it("shows only the year for an undisclosed round, never $0", () => {
@@ -38,7 +41,7 @@ describe("startupCorner", () => {
       startupCorner(
         card({ latestRound: round({ isUndisclosed: true, amountUsd: null }) }),
       ),
-    ).toBe("2025");
+    ).toEqual({ main: "2025", detail: null });
   });
 
   it("falls back to acquisition, then city, then country", () => {
@@ -52,11 +55,14 @@ describe("startupCorner", () => {
       startupCorner(
         card({ acquiredBy: { name: "Big", slug: null }, location }),
       ),
-    ).toBe("Acquired");
-    expect(startupCorner(card({ location }))).toBe("Berlin");
-    expect(startupCorner(card({ location: { ...location, city: null } }))).toBe(
-      "Germany",
-    );
+    ).toEqual({ main: "Acquired", detail: null });
+    expect(startupCorner(card({ location }))).toEqual({
+      main: "Berlin",
+      detail: null,
+    });
+    expect(
+      startupCorner(card({ location: { ...location, city: null } })),
+    ).toEqual({ main: "Germany", detail: null });
     expect(startupCorner(card())).toBeNull();
   });
 });

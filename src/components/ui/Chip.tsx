@@ -10,7 +10,7 @@ type ChipProps = Readonly<{
 }>;
 
 const CHIP =
-  "meta inline-flex h-5 items-center rounded-xs border border-border-strong px-1.5 text-fg-muted";
+  "meta inline-flex h-5 shrink-0 items-center whitespace-nowrap rounded-xs border border-border-strong px-1.5 text-fg-muted";
 
 /** A small monospace tag: stage, industry, work type. */
 export function Chip({ children, href, className }: ChipProps) {

@@ -51,7 +51,7 @@ export function IconToggle<Value extends string>({
             title={option.label}
             onClick={() => onChange(option.value)}
             className={cx(
-              "inline-flex size-8 items-center justify-center rounded-pill",
+              "inline-flex size-7 items-center justify-center rounded-pill sm:size-8",
               "transition-colors duration-(--duration-fast) ease-(--ease-out)",
               pressed
                 ? "bg-inverse-bg text-inverse-fg"

@@ -42,7 +42,7 @@ export function EntityCard({
     <HoverPrefetchLink
       href={href}
       className={cx(
-        "group flex min-w-0 flex-col gap-2.5 border border-border bg-bg p-2.5 sm:gap-3 sm:p-3",
+        "group @container flex min-w-0 flex-col gap-2.5 border border-border bg-bg p-2.5 sm:gap-3 sm:p-3",
         "transition-colors duration-(--duration-fast) ease-(--ease-out) hover:bg-surface-hover",
         "focus-visible:relative focus-visible:z-10 focus-visible:outline-offset-[-2px]",
         className,
@@ -101,13 +101,15 @@ export function EntityCard({
       </div>
 
       <div className="flex min-h-5 items-center justify-between gap-2">
+        {/* One row: chips that do not fit wrap onto a hidden second row; one too wide for the
+            row on its own is truncated with an ellipsis. */}
         <ul className="flex h-5 min-w-0 flex-wrap gap-1 overflow-hidden">
           {chips.map((chip) => (
             <li
               key={chip}
-              className="meta inline-flex h-5 items-center rounded-xs border border-border-strong px-1.5 text-fg-muted"
+              className="meta inline-flex h-5 max-w-full shrink-0 items-center rounded-xs border border-border-strong px-1.5 text-fg-muted"
             >
-              {chip}
+              <span className="truncate">{chip}</span>
             </li>
           ))}
         </ul>

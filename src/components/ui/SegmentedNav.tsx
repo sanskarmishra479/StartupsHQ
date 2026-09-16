@@ -29,7 +29,7 @@ export function SegmentedNav({
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cx(
-                  "inline-flex h-8 items-center rounded-pill px-3.5 font-medium text-sm",
+                  "inline-flex h-7 items-center whitespace-nowrap rounded-pill px-2 font-medium text-[0.8125rem] sm:h-8 sm:px-3.5 sm:text-sm",
                   "transition-colors duration-(--duration-fast) ease-(--ease-out)",
                   active
                     ? "bg-inverse-bg text-inverse-fg"
