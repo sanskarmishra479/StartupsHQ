@@ -1,4 +1,6 @@
 import type {
+  FOUNDER_ROLE_LABELS,
+  INVESTOR_TYPE_LABELS,
   ROUND_TYPE_LABELS,
   STAGE_LABELS,
   WORK_TYPE_LABELS,
@@ -82,3 +84,183 @@ export type CategoryDirectory = readonly Readonly<{
   kind: CategoryKind;
   entries: readonly CategoryEntry[];
 }>[];
+
+export type InvestorType = keyof typeof INVESTOR_TYPE_LABELS;
+export type FounderRole = keyof typeof FOUNDER_ROLE_LABELS;
+export type RoundClass =
+  | "equity"
+  | "convertible"
+  | "debt"
+  | "non_dilutive"
+  | "secondary";
+export type HeadcountBand =
+  | "1-10"
+  | "11-50"
+  | "51-200"
+  | "201-500"
+  | "501-1000"
+  | "1000+";
+
+/** docs/API.md §7.3. */
+export type Round = Readonly<{
+  id: string;
+  roundType: RoundType;
+  roundClass: RoundClass;
+  announcedOn: string;
+  isUndisclosed: boolean;
+  amountUsd: number | null;
+  currency: string;
+  amountOriginal: number | null;
+  fxRate: number | null;
+  fxRateDate: string | null;
+  valuationUsd: number | null;
+  sourceUrl: string;
+  sourceTitle: string | null;
+  investors: readonly Readonly<{
+    slug: string;
+    name: string;
+    logo: Image | null;
+    isLead: boolean;
+  }>[];
+}>;
+
+/** docs/API.md §7.2. */
+export type Startup = StartupCard &
+  Readonly<{
+    description: string | null;
+    legalName: string | null;
+    websiteUrl: string | null;
+    careersUrl: string | null;
+    links: Readonly<{
+      linkedin: string | null;
+      x: string | null;
+      github: string | null;
+    }>;
+    foundedYear: number | null;
+    foundedOn: string | null;
+    headcountBand: HeadcountBand | null;
+    isActive: boolean;
+    totalDebtUsd: number | null;
+    industries: readonly Readonly<{
+      slug: string;
+      name: string;
+      isPrimary: boolean;
+    }>[];
+    founders: readonly Readonly<{
+      slug: string;
+      fullName: string;
+      headline: string | null;
+      photo: Image | null;
+      role: FounderRole;
+      isCurrent: boolean;
+      joinedYear: number | null;
+      leftYear: number | null;
+    }>[];
+    investors: readonly Readonly<{
+      slug: string;
+      name: string;
+      investorType: InvestorType;
+      logo: Image | null;
+      isLead: boolean;
+    }>[];
+    batches: readonly Readonly<{
+      slug: string;
+      programName: string;
+      label: string;
+      year: number;
+    }>[];
+    rounds: readonly Round[];
+    acquiredOn: string | null;
+    acquiredAmountUsd: number | null;
+    ogImageUrl: string | null;
+    updatedAt: string;
+  }>;
+
+/** docs/API.md §7.4. */
+export type Founder = Readonly<{
+  slug: string;
+  fullName: string;
+  headline: string | null;
+  bio: string | null;
+  photo: Image | null;
+  links: Readonly<{
+    linkedin: string | null;
+    x: string | null;
+    github: string | null;
+    personal: string | null;
+  }>;
+  location: LocationSummary | null;
+  startups: readonly Readonly<{
+    startup: StartupCard;
+    role: FounderRole;
+    isCurrent: boolean;
+    joinedYear: number | null;
+    leftYear: number | null;
+  }>[];
+  startupCount: number;
+  ogImageUrl: string | null;
+  updatedAt: string;
+}>;
+
+export type InvestorBreakdown = Readonly<{
+  byStage: readonly Readonly<{ stage: Stage; count: number }>[];
+  byIndustry: readonly Readonly<{
+    slug: string;
+    name: string;
+    count: number;
+  }>[];
+}>;
+
+/** docs/API.md §7.5. */
+export type Investor = Readonly<{
+  slug: string;
+  name: string;
+  investorType: InvestorType;
+  description: string | null;
+  logo: Image | null;
+  websiteUrl: string | null;
+  foundedYear: number | null;
+  aumUsd: number | null;
+  hqLocation: LocationSummary | null;
+  portfolioCount: number;
+  roundsLedCount: number;
+  breakdown: InvestorBreakdown;
+  portfolio: readonly StartupCard[];
+  pagination: Pagination;
+  ogImageUrl: string | null;
+}>;
+
+export type BatchStats = Readonly<{
+  companyCount: number;
+  totalRaisedUsd: number;
+  topIndustries: readonly Readonly<{
+    slug: string;
+    name: string;
+    count: number;
+  }>[];
+}>;
+
+/** docs/API.md §7.6. */
+export type Batch = Readonly<{
+  slug: string;
+  programName: string;
+  label: string;
+  season: string | null;
+  year: number;
+  startsOn: string | null;
+  demoDayOn: string | null;
+  description: string | null;
+  logo: Image | null;
+  investor: Readonly<{
+    slug: string;
+    name: string;
+    investorType: InvestorType;
+    logo: Image | null;
+  }> | null;
+  stats: BatchStats;
+  companies: readonly StartupCard[];
+  pagination: Pagination;
+}>;
+
+/** docs/API.md §7.7. */
+export type NewsItem = Readonly<{ round: Round; startup: StartupCard }>;

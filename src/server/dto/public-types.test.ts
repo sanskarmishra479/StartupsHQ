@@ -1,16 +1,26 @@
 import { describe, expectTypeOf, it } from "vitest";
 import type * as Client from "../../types/public";
 import type { Page, Pagination } from "../lib/pagination";
+import type { Batch, BatchStats } from "./batch";
 import type {
   CategoryDirectory,
   CategoryEntry,
   CategoryKind,
 } from "./category";
+import type { Founder } from "./founder";
 import type { Image } from "./image";
+import type { Investor, InvestorBreakdown } from "./investor";
+import type { NewsItem } from "./news";
 import type {
+  FounderRole,
+  HeadcountBand,
+  InvestorType,
   LocationSummary,
+  Round,
+  RoundClass,
   RoundType,
   Stage,
+  Startup,
   StartupCard,
   WorkType,
 } from "./startup";
@@ -27,6 +37,18 @@ describe("src/types/public.ts", () => {
     expectTypeOf<Client.LocationSummary>().toEqualTypeOf<LocationSummary>();
     expectTypeOf<Client.StartupCard>().toEqualTypeOf<StartupCard>();
     expectTypeOf<Client.Pagination>().toEqualTypeOf<Pagination>();
+    expectTypeOf<Client.InvestorType>().toEqualTypeOf<InvestorType>();
+    expectTypeOf<Client.FounderRole>().toEqualTypeOf<FounderRole>();
+    expectTypeOf<Client.RoundClass>().toEqualTypeOf<RoundClass>();
+    expectTypeOf<Client.HeadcountBand>().toEqualTypeOf<HeadcountBand>();
+    expectTypeOf<Client.Round>().toEqualTypeOf<Round>();
+    expectTypeOf<Client.Startup>().toEqualTypeOf<Startup>();
+    expectTypeOf<Client.Founder>().toEqualTypeOf<Founder>();
+    expectTypeOf<Client.InvestorBreakdown>().toEqualTypeOf<InvestorBreakdown>();
+    expectTypeOf<Client.Investor>().toEqualTypeOf<Investor>();
+    expectTypeOf<Client.BatchStats>().toEqualTypeOf<BatchStats>();
+    expectTypeOf<Client.Batch>().toEqualTypeOf<Batch>();
+    expectTypeOf<Client.NewsItem>().toEqualTypeOf<NewsItem>();
     expectTypeOf<Client.Page<Client.StartupCard>>().toEqualTypeOf<
       Page<StartupCard>
     >();

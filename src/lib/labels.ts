@@ -41,6 +41,16 @@ export const ROUND_TYPE_LABELS = {
   secondary: "Secondary",
 } as const;
 
+export const FOUNDER_ROLE_LABELS = {
+  founder: "Founder",
+  cofounder: "Co-founder",
+  ceo: "CEO",
+  cto: "CTO",
+  operator: "Operator",
+  advisor: "Advisor",
+  early_employee: "Early employee",
+} as const;
+
 export const INVESTOR_TYPE_LABELS = {
   vc: "VC",
   accelerator: "Accelerator",
@@ -63,6 +73,8 @@ export const workTypeLabel = (value: string) =>
   labelFrom(WORK_TYPE_LABELS, value);
 export const roundTypeLabel = (value: string) =>
   labelFrom(ROUND_TYPE_LABELS, value);
+export const founderRoleLabel = (value: string) =>
+  labelFrom(FOUNDER_ROLE_LABELS, value);
 export const investorTypeLabel = (value: string) =>
   labelFrom(INVESTOR_TYPE_LABELS, value);
 

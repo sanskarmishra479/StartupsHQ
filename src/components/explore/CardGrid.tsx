@@ -14,10 +14,13 @@ export function CardGrid({
   cards,
   className,
   label = "Companies",
+  headingLevel = 2,
 }: Readonly<{
   cards: readonly StartupCard[];
   className?: string;
   label?: string;
+  /** One below the heading the grid sits under. */
+  headingLevel?: 2 | 3 | 4;
 }>) {
   return (
     <ul aria-label={label} className={cx(GRID_COLUMNS, className)}>
@@ -27,7 +30,7 @@ export function CardGrid({
             card={card}
             sizes={SIZES}
             priority={index < 2}
-            headingLevel={2}
+            headingLevel={headingLevel}
             className="w-full"
           />
         </li>

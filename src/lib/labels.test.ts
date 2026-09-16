@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  founderRoleEnum,
   investorTypeEnum,
   roundTypeEnum,
   stageEnum,
@@ -7,6 +8,8 @@ import {
 } from "../server/db/schema";
 import {
   enumToSlug,
+  FOUNDER_ROLE_LABELS,
+  founderRoleLabel,
   INVESTOR_TYPE_LABELS,
   investorTypeLabel,
   ROUND_TYPE_LABELS,
@@ -24,6 +27,7 @@ describe("labels", () => {
     ["work type", WORK_TYPE_LABELS, workTypeEnum.enumValues],
     ["investor type", INVESTOR_TYPE_LABELS, investorTypeEnum.enumValues],
     ["round type", ROUND_TYPE_LABELS, roundTypeEnum.enumValues],
+    ["founder role", FOUNDER_ROLE_LABELS, founderRoleEnum.enumValues],
   ] as const)("covers exactly the database %s enum", (_label, labels, values) => {
     expect(Object.keys(labels).sort()).toEqual([...values].sort());
   });
@@ -33,6 +37,7 @@ describe("labels", () => {
     expect(workTypeLabel("onsite")).toBe("On-site");
     expect(investorTypeLabel("vc")).toBe("VC");
     expect(roundTypeLabel("series_a")).toBe("Series A");
+    expect(founderRoleLabel("early_employee")).toBe("Early employee");
     expect(stageLabel("unicorn")).toBeUndefined();
     expect(stageLabel("toString")).toBeUndefined();
   });
