@@ -65,7 +65,11 @@ export function EntityCard({
             className="size-5 text-[0.5625rem]"
           />
         )}
-        <h3 className="meta min-w-0 truncate text-right text-fg">{name}</h3>
+        <h3 className="meta min-w-0 truncate text-right text-fg">
+          {name}
+          {/* The link's accessible name is its text run together; these keep the parts apart. */}
+          <span className="sr-only">, </span>
+        </h3>
       </div>
 
       <div className="relative aspect-(--aspect-cover) w-full overflow-hidden rounded-xs bg-placeholder">
@@ -110,6 +114,7 @@ export function EntityCard({
               className="meta inline-flex h-5 max-w-full shrink-0 items-center rounded-xs border border-border-strong px-1.5 text-fg-muted"
             >
               <span className="truncate">{chip}</span>
+              <span className="sr-only">, </span>
             </li>
           ))}
         </ul>
