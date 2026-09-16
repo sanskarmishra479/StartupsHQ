@@ -1,6 +1,6 @@
 # startupsHQ — API Contract
 
-**Status:** §6, §7 and §8.1–8.5, §8.8, §8.9 implemented; prefill (§8.6) and CSV import (§8.7) specified · **v1 frozen 2026-09-16** (§9) · **Version:** v1 (draft 2) · **Last updated:** 2026-09-16
+**Status:** §6, §7 and §8.1–8.6, §8.8, §8.9 implemented; CSV import (§8.7) specified · **v1 frozen 2026-09-16** (§9) · **Version:** v1 (draft 2) · **Last updated:** 2026-09-16
 **Requirements authority:** [SRS.md](./SRS.md) · This document is the authority on **paths, params, DTO shapes and status codes**.
 
 > **How to read this document.** It is written **design-first**: it specifies the contract handlers must satisfy, not code that exists. TODO Phase 8 implements it; Phase 12 verifies every shape against the real handlers via the contract tests in [TEST_PLAN.md](./TEST_PLAN.md) §9. If implementation diverges, both this document and the handler are suspect — resolve deliberately.
@@ -498,7 +498,9 @@ Type comes from the magic bytes — never the filename or the declared `Content-
 
 `{ "url": "https://www.highstock.com/" }`
 
-Every fetch — the page, `og:image`, icons and any Firecrawl-returned URL — goes through `safeFetch` (connect-time IP validation, manual re-validated redirects ≤ 3, 5 s, 5 MB). A rejected URL → `400 UNSAFE_URL` with a reason that never includes a resolved internal IP. Thin metadata still returns `200` with a partial draft.
+Every fetch — the page, `og:image`, icons and any Firecrawl-returned URL — goes through `safeFetch` (connect-time IP validation, manual re-validated redirects ≤ 3, 5 s, 5 MB). A rejected **page** URL → `400 UNSAFE_URL`, including plain `http`, with a reason that never includes a resolved internal IP. Thin metadata still returns `200` with a partial draft.
+
+As built: `20` per hour per editor and **fails closed** — this is the one endpoint that makes the server fetch a host the caller named, so without a working limiter it does not run (SEC-08). A rejected **image** URL never fails the draft: that image is `null` and a warning says so. An icon that is not a JPEG, PNG or WebP (an SVG favicon, typically) is skipped the same way, since SVG is not accepted anywhere (SEC-06). `source` is `json-ld` \| `opengraph` \| `html` \| `firecrawl`, naming where the copy came from; `confidence` is `high` for JSON-LD or `og:site_name`, `medium` for other OpenGraph tags, `low` for a bare `<title>` or `<meta name="description">`. Firecrawl is consulted only when the page yielded neither a name nor a description, and only with a key configured; without one the draft simply carries a warning. `locationGuess.matchedLocationId` is set when the city (and a two-letter country, when present) matches an existing `locations` row.
 
 ```json
 { "data": {

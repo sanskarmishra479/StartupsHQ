@@ -27,6 +27,7 @@ import * as investorWrites from "./investor-writes";
 import * as investors from "./investors";
 import * as lifecycle from "./lifecycle";
 import * as media from "./media";
+import * as prefill from "./prefill";
 import * as privacy from "./privacy";
 import * as relationWrites from "./relation-writes";
 import * as roundWrites from "./round-writes";
@@ -53,6 +54,10 @@ beforeAll(async () => {
 /** Mutations are exercised against a record that does not exist: authorized callers get past
  *  the guard and fail with NotFound or a validation error, so no fixture data changes. */
 const NIL_UUID = "00000000-0000-4000-8000-000000000000";
+
+/** The smallest thing the media pipeline accepts: a 1x1 PNG. */
+const TINY_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==";
 
 afterAll(async () => {
   await closeDb();
@@ -397,6 +402,20 @@ const REGISTRY: AuthzRegistry = {
           "base64",
         ),
       }),
+  },
+  "services/media.ts#storeRemoteImage": {
+    kind: "mutation",
+    invoke: (ctx) =>
+      media.storeRemoteImage(ctx, {
+        purpose: "logo",
+        sourceUrl: "https://example.com/logo.png",
+        bytes: Buffer.from(TINY_PNG, "base64"),
+      }),
+  },
+  "services/prefill.ts#prefill": {
+    kind: "mutation",
+    // A loopback URL: an editor gets past the guard and is refused by safeFetch, with no socket.
+    invoke: (ctx) => prefill.prefill(ctx, { url: "https://127.0.0.1/" }),
   },
   "services/media.ts#refreshOgImage": {
     kind: "mutation",

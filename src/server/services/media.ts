@@ -208,9 +208,50 @@ export async function upload(
     );
   }
 
+  return store(ctx.actor.id, purpose, input.bytes, null);
+}
+
+export type RemoteImageInput = Readonly<{
+  purpose: UploadPurpose;
+  bytes: Uint8Array;
+  /** Where it was fetched from, recorded on the asset (FR-401). */
+  sourceUrl: string;
+}>;
+
+/**
+ * An image prefill fetched from a company's own site. Exactly the checks an upload gets — the
+ * bytes are attacker-influenced either way — plus the URL it came from.
+ */
+export async function storeRemoteImage(
+  ctx: ReadContext,
+  input: RemoteImageInput,
+): Promise<UploadedAsset> {
+  assertEditor(ctx);
+  if (input.bytes.byteLength === 0) {
+    throw new ValidationError([
+      { path: "file", message: "The file is empty." },
+    ]);
+  }
+  if (input.bytes.byteLength > MAX_UPLOAD_BYTES) {
+    throw new PayloadTooLargeError("Images must be 5 MB or smaller.");
+  }
+  if (sniff(input.bytes) === null) {
+    throw new UnsupportedMediaTypeError(
+      "That file is not a JPEG, PNG or WebP image.",
+    );
+  }
+  return store(ctx.actor.id, input.purpose, input.bytes, input.sourceUrl);
+}
+
+async function store(
+  actorId: string,
+  purpose: UploadPurpose,
+  bytes: Uint8Array,
+  sourceUrl: string | null,
+): Promise<UploadedAsset> {
   const prefix = randomPrefix(purpose);
   const { variants, blurDataUrl } = await renderVariants(
-    input.bytes,
+    bytes,
     WIDTHS[purpose],
     prefix,
   );
@@ -223,7 +264,8 @@ export async function upload(
       state: "staging",
       variants,
       blurDataUrl,
-      createdBy: ctx.actor.id,
+      sourceUrl,
+      createdBy: actorId,
     })
     .returning({ id: mediaAssets.id });
   if (!row) throw new Error("The media asset was not stored.");

@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 9 complete — Phase 10 (paste-URL prefill) next · **Last updated:** 2026-09-16
+**Status:** Phase 10 complete — Phase 11 (CSV bulk import) next · **Last updated:** 2026-09-16
 
 ---
 
@@ -240,16 +240,16 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 10 · Paste-URL prefill  *(FR-401, SEC-05)*
 
-- [ ] `services/prefill.ts` — `safeFetch` for the page
-- [ ] Parse OG → JSON-LD → title/meta → icons
-- [ ] **Every image/icon URL through `safeFetch` again**, then through the media pipeline as staging assets
-- [ ] Firecrawl fallback; **URLs it returns go through `safeFetch`**; absent key degrades gracefully
-- [ ] Location guess → existing `locations` row or flagged
-- [ ] Always a partial draft; never persisted as an entity
-- [ ] `POST /api/v1/prefill` — editor, 20/hour, fail closed
-- [ ] Tests: full SEC-05 matrix at the endpoint, incl. rebinding, hostile `og:image`, hostile Firecrawl URL
+- [x] `services/prefill.ts` — `safeFetch` for the page
+- [x] Parse OG → JSON-LD → title/meta → icons — `cheerio`, which parses without executing anything; JSON-LD is read from `@graph` too
+- [x] **Every image/icon URL through `safeFetch` again**, then through the media pipeline as staging assets — `media.storeRemoteImage`, which records `source_url`
+- [x] Firecrawl fallback; **URLs it returns go through `safeFetch`**; absent key degrades gracefully — consulted only when the page yielded neither name nor description
+- [x] Location guess → existing `locations` row or flagged (`matchedLocationId: null`)
+- [x] Always a partial draft; never persisted as an entity — asserted by comparing the startup count across a prefill
+- [x] `POST /api/v1/prefill` — editor, 20/hour, fail closed
+- [x] Tests: full SEC-05 matrix at the endpoint, incl. rebinding, hostile `og:image`, hostile Firecrawl URL
 
-**EXIT:** a real URL yields a usable draft · no private-address socket ever opened in tests.
+**EXIT:** ✅ a page with the markup real sites carry yields a usable draft (fixtures, since tests reach no network) · no private-address socket ever opened: the fake fetcher runs the real `assertSafeUrl`, and the rebinding case is refused by the socket's own lookup · the pre-launch checklist still calls for prefill against five real company URLs.
 
 ---
 
