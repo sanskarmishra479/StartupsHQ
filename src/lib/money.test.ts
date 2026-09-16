@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAmount, isWholeUsd } from "./money";
+import { formatAmount, formatOriginalAmount, isWholeUsd } from "./money";
 
 describe("formatAmount", () => {
   it.each([
@@ -36,5 +36,28 @@ describe("isWholeUsd", () => {
     expect(isWholeUsd(Number.MAX_SAFE_INTEGER + 1)).toBe(false);
     expect(isWholeUsd(-1)).toBe(false);
     expect(isWholeUsd(2.5)).toBe(false);
+  });
+});
+
+describe("formatOriginalAmount", () => {
+  it.each([
+    [20_000_000, "EUR", "€20M"],
+    [750_000, "GBP", "£750K"],
+    [1_500_000_000, "INR", "₹1.5B"],
+  ])("%d %s → %s", (amount, currency, expected) => {
+    expect(formatOriginalAmount(amount, currency)).toBe(expected);
+  });
+
+  it("omits USD, which the USD figure already shows", () => {
+    expect(formatOriginalAmount(5_000_000, "USD")).toBeNull();
+  });
+
+  it("returns null for unknown amounts and malformed currencies", () => {
+    expect(formatOriginalAmount(null, "EUR")).toBeNull();
+    expect(formatOriginalAmount(5, null)).toBeNull();
+    expect(formatOriginalAmount(-5, "EUR")).toBeNull();
+    expect(formatOriginalAmount(Number.NaN, "EUR")).toBeNull();
+    expect(formatOriginalAmount(5, "eur")).toBeNull();
+    expect(formatOriginalAmount(5, "EURO")).toBeNull();
   });
 });
