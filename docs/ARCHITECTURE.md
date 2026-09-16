@@ -226,9 +226,31 @@ service throws typed error ──▶ handler maps to status ──▶ { error: {
 |---|---|---|---|
 | `backup.yml` | nightly 02:00 UTC | `backup_ro` | `pg_dump -Fc` → `age` encrypt → R2, 30-day lifecycle |
 | `restore-test.yml` | monthly | scratch branch | restore latest dump, compare row counts, alert on mismatch |
-| `maintenance.yml` → retention | daily | `retention` | null `audit_log.ip` > 90 days, delete rows > 12 months |
-| `maintenance.yml` → media GC | weekly | `app_rw` | delete staging assets > 24 h, unreferenced assets > 7 days |
-| `maintenance.yml` → FX | daily | `app_rw` | import ECB reference rates into `fx_rates` |
+| `maintenance.yml` → retention | weekly, Mon 03:17 UTC | `retention` | null `audit_log.ip` > 90 days, delete rows > 12 months (`pnpm audit:retention`) |
+| `maintenance.yml` → media GC | weekly, Mon 03:17 UTC | `app_rw` | delete staging assets > 24 h, unreferenced assets > 7 days (`pnpm media:gc`) |
+| `maintenance.yml` → FX | weekdays 16:20 UTC | `app_rw` | import ECB reference rates into `fx_rates` (`pnpm fx:import`) |
+
+Both cron entries fire the whole workflow, so each job names the schedule it belongs to. Every job
+is inert until the `ENABLE_MAINTENANCE` repository variable is set in Phase 22, and each is
+idempotent: re-running one changes nothing it has already done.
+
+**WAF rules (SEC-08), to apply in Phase 22**
+
+Written here rather than discovered during a launch. Thresholds are opening positions, tuned from
+real traffic once there is some; the shape matters more than the numbers.
+
+| Rule | Match | Action | Why |
+|---|---|---|---|
+| Read flood | `GET /api/v1/*`, > 300 requests / minute per IP + JA4 | rate limit, then challenge | The public API is the only surface a scraper wants; the app-level budget deliberately does not cover reads (ADR-017) |
+| List scraping | `GET /api/v1/startups`, `/rounds`, `/categories`, `/search`, `/suggest`, > 60 / minute per IP + JA4 | bot challenge | Catalogue pages are the valuable ones; signed cursors and the 20-page depth cap (SEC-15) already bound how deep one caller can go |
+| Admin surface | any request to `admin.startupshq.space` from outside expected geographies or from a datacentre ASN | challenge | Only a handful of people ever sign in; a challenge costs them nothing and removes credential stuffing traffic before it reaches a function |
+| Auth endpoints | `POST /api/auth/*`, > 30 / 15 minutes per IP | rate limit | Second line in front of the app's own limiter, which fails closed (SEC-08) |
+| Write endpoints | non-`GET` `/api/v1/*` on the public origin | block | `proxy.ts` already answers 404; blocking at the edge means the function is never woken |
+| Known-bad paths | `/wp-admin`, `/.env`, `/.git/*`, `/phpmyadmin` | block | Pure noise, and each one otherwise costs an invocation |
+
+Blocked traffic never reaches a function, which is what keeps a scrape from becoming a bill. The
+rules are reviewed after the first month of real traffic, and again if egress or invocation counts
+move sharply.
 
 ## 9. Cost model
 

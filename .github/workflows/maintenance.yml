@@ -1,5 +1,5 @@
-# Scheduled housekeeping (ARCHITECTURE §ops). Media GC lands in Phase 9; audit retention and the
-# FX rate import join it in later phases.
+# Scheduled housekeeping (ARCHITECTURE §ops): media garbage collection, audit retention and the
+# daily exchange rates.
 #
 # Inert until Phase 22: set the repository variable ENABLE_MAINTENANCE=true once the `production`
 # environment holds DATABASE_URL and BLOB_READ_WRITE_TOKEN.
@@ -9,6 +9,8 @@ on:
   schedule:
     # Mondays, 03:17 UTC — off the hour, so it does not collide with everyone else's jobs.
     - cron: "17 3 * * 1"
+    # Weekdays, 16:20 UTC: the ECB publishes its daily rates at about 16:00 CET.
+    - cron: "20 16 * * 1-5"
   workflow_dispatch:
 
 permissions:
@@ -24,7 +26,7 @@ env:
 jobs:
   media-gc:
     name: media garbage collection
-    if: ${{ vars.ENABLE_MAINTENANCE == 'true' }}
+    if: ${{ vars.ENABLE_MAINTENANCE == 'true' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 3 * * 1') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: production
@@ -51,3 +53,63 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+
+  audit-retention:
+    name: audit retention
+    if: ${{ vars.ENABLE_MAINTENANCE == 'true' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '17 3 * * 1') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm (version from package.json)
+        run: corepack enable pnpm
+
+      - name: Install (frozen lockfile, supply-chain policies)
+        run: pnpm install --frozen-lockfile
+
+      # The retention credential, not the application's: it may touch audit_log and nothing
+      # else, which is the whole point of the log being append-only for the app (SEC-10).
+      - name: Clear old addresses and remove expired audit rows
+        run: pnpm audit:retention
+        env:
+          RETENTION_DATABASE_URL: ${{ secrets.RETENTION_DATABASE_URL }}
+
+  fx-rates:
+    name: exchange rates
+    if: ${{ vars.ENABLE_MAINTENANCE == 'true' && (github.event_name == 'workflow_dispatch' || github.event.schedule == '20 16 * * 1-5') }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm (version from package.json)
+        run: corepack enable pnpm
+
+      - name: Install (frozen lockfile, supply-chain policies)
+        run: pnpm install --frozen-lockfile
+
+      - name: Import the ECB daily reference rates
+        run: pnpm fx:import
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
