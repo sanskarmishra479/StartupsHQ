@@ -18,7 +18,12 @@ export type AuditAction =
   | "unpublish"
   | "slug_change"
   | "hard_delete"
-  | "erase";
+  | "erase"
+  | "invite"
+  | "role_change"
+  | "reset_two_factor"
+  | "deactivate"
+  | "reactivate";
 
 export type AuditEntityType =
   | "startup"
@@ -27,7 +32,8 @@ export type AuditEntityType =
   | "batch"
   | "round"
   | "category"
-  | "privacy_request";
+  | "privacy_request"
+  | "user";
 
 export async function writeAudit(
   tx: Pick<Transaction, "insert">,

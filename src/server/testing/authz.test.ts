@@ -37,6 +37,11 @@ const stubRegistry: AuthzRegistry = {
     invoke: (ctx) => stub.listThings(ctx),
     seesDraft: hasDraft,
   },
+  "stub-service.ts#listThingsForEditors": {
+    kind: "editor-read",
+    invoke: (ctx) => stub.listThingsForEditors(ctx),
+    seesDraft: hasDraft,
+  },
   "stub-service.ts#getCachedThings": {
     kind: "cached-read",
     invoke: (ctx) => stub.getCachedThings(ctx),
@@ -82,6 +87,20 @@ describe("authz harness catches broken services", () => {
       await authzViolations({
         kind: "mutation",
         invoke: broken.unguardedDelete,
+      }),
+    ).toEqual([
+      "anonymous was not refused",
+      "publicRead was not refused",
+      "forgedAdmin was not refused",
+    ]);
+  });
+
+  it("flags an admin-panel read that anyone can call", async () => {
+    expect(
+      await authzViolations({
+        kind: "editor-read",
+        invoke: broken.unguardedEditorList,
+        seesDraft: hasDraft,
       }),
     ).toEqual([
       "anonymous was not refused",

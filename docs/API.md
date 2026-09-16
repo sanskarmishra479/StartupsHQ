@@ -1,6 +1,6 @@
 # startupsHQ — API Contract
 
-**Status:** Read endpoints (§6) and write endpoints §8.1–8.4 and §8.9 implemented; admin reads, media, prefill, import and users specified · **Version:** v1 (draft 2) · **Last updated:** 2026-09-15
+**Status:** §6, §7 and §8.1–8.4, §8.8, §8.9 implemented; media (§8.5), prefill (§8.6) and CSV import (§8.7) specified · **v1 frozen 2026-09-16** (§9) · **Version:** v1 (draft 2) · **Last updated:** 2026-09-16
 **Requirements authority:** [SRS.md](./SRS.md) · This document is the authority on **paths, params, DTO shapes and status codes**.
 
 > **How to read this document.** It is written **design-first**: it specifies the contract handlers must satisfy, not code that exists. TODO Phase 8 implements it; Phase 12 verifies every shape against the real handlers via the contract tests in [TEST_PLAN.md](./TEST_PLAN.md) §9. If implementation diverges, both this document and the handler are suspect — resolve deliberately.
@@ -84,7 +84,7 @@
 | `POST /prefill` | 20 / hour | Upstash | user |
 | Other writes | 120 / min | Upstash | user |
 
-Exact WAF thresholds are tuned after launch from real traffic. App-level `429`s carry `Retry-After`. Login and prefill **fail closed** if Upstash is unavailable.
+Exact WAF thresholds are tuned after launch from real traffic. App-level `429`s carry `Retry-After`. Login and prefill **fail closed** if Upstash is unavailable. The per-account write budget **fails open**: only staff hold accounts, so it caps what one stolen editor session can do in a minute rather than shielding the app from visitors, and a limiter outage must not stop editorial work — every write is audited regardless (SEC-08).
 
 ---
 
@@ -378,6 +378,36 @@ A founder may appear more than once for the same startup with different roles or
 
 `meta.matchType` is `fulltext` or `trigram`.
 
+## 7.10 `AdminListItem` and `AdminRecord` *(admin origin only)*
+
+The admin panel edits by id and needs the ids public DTOs deliberately omit. These shapes are served only on the admin origin, to a session with role `editor` or `admin`, and are never cached.
+
+```json
+{ "id": "9f1c…", "slug": "kiln-analytics", "name": "Kiln Analytics",
+  "subtitle": "Warehouse-native product analytics.", "status": "draft",
+  "updatedAt": "2026-09-11T09:14:22.000Z", "firstPublishedAt": null }
+```
+
+`slug` is `null` for rounds, which have none; their `name` is `"series_a · 2026-09-10"` and their `subtitle` is the startup's name.
+
+```json
+{ "entity": "startup", "id": "9f1c…", "slug": "kiln-analytics", "status": "draft",
+  "firstPublishedAt": null, "archivedAt": null,
+  "createdAt": "2026-09-01T10:00:00.000Z", "updatedAt": "2026-09-11T09:14:22.000Z",
+  "values":  { "name": "Kiln Analytics", "tagline": "…", "locationId": "3c0a…", "logoAssetId": null },
+  "derived": { "totalRaisedUsd": 34500000, "totalDebtUsd": 0, "latestRoundId": "7b2e…" },
+  "links":   { "industries": [ { "id": "1f2e…", "slug": "devtools", "name": "Developer Tools", "isPrimary": true } ],
+               "founders":   [ { "linkId": "5a1b…", "founderId": "8a7b…", "slug": "tomasz-wrobel", "fullName": "Tomasz Wróbel", "status": "published", "role": "cto", "isCurrent": true, "joinedYear": 2019, "leftYear": null, "sortOrder": 0, "sourceUrl": null } ],
+               "investors":  [ { "linkId": "c3d4…", "investorId": "4d5c…", "slug": "northwind-ventures", "name": "Northwind Ventures", "status": "published", "roundId": "7b2e…", "isLead": true, "amountUsd": null } ],
+               "batches":    [ { "batchId": "9e8d…", "slug": "parallel-w25", "programName": "Parallel Accelerator", "label": "W25", "year": 2025, "status": "published" } ],
+               "rounds":     [ { "id": "7b2e…", "roundType": "series_b", "announcedOn": "2026-02-01", "status": "published", "isUndisclosed": false, "amountUsd": 30000000, "currency": "USD" } ] } }
+```
+
+- **`values` holds exactly the fields `PATCH /{entity}/{id}` accepts**, so a form can send them straight back. `slug`, `status` and the audit columns are never in it.
+- **`derived`** is server-computed and read-only: a startup's totals and latest round, a round's `amountUsd`, `fxRate`, `fxRateDate`, `fxSource`, `roundClass` and `startupId`.
+- **`links`** appears for startups only. Each entry carries the id §8.3 addresses it by (`linkId` for founder stints and investor links, `batchId`, the industry `id`), and names the related record's own `status`, since a draft may be linked.
+- Timestamps are ISO 8601 UTC; `amountOriginal` stays a decimal string, so no precision is lost.
+
 ---
 
 # 8. Write & admin endpoints (admin origin)
@@ -390,8 +420,8 @@ For each of `startups`, `founders`, `investors`, `batches`, `rounds`:
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/{entity}?status=&q=&cursor=` | Admin list, includes drafts and archived. Uncached. |
-| `GET` | `/{entity}/{id}` | Admin read, includes drafts. Uncached. |
+| `GET` | `/{entity}?status=&q=&cursor=&limit=` | Admin list, includes drafts and archived. Uncached. Ordered `updatedAt DESC, id`; `q` matches the name literally (`%` and `_` are not wildcards); `status` is `draft` \| `published` \| `archived`. Returns `AdminListItem[]` (§7.10) |
+| `GET` | `/{entity}/{id}` | Admin read, includes drafts. Uncached. Returns `AdminRecord` (§7.10) |
 | `POST` | `/{entity}` | Creates `draft`. Slug generated from name; an explicit free slug is honoured, else `409`. → `201` |
 | `PATCH` | `/{entity}/{id}` | Partial update. Changing `slug` here → `422` (use §8.2). |
 | `POST` | `/{entity}/{id}/publish` | → `published`; sets `first_published_at` once. `422` if required fields missing (name, slug, tagline, location for startups). Renders and stores the OG image (FR-111). |
@@ -512,8 +542,20 @@ Values are returned and stored raw; the React UI escapes them on render.
 
 ## 8.8 Users *(admin only, FR-208)*
 
-`GET /users` · `POST /users/invite` `{ email, role }` (sends an email; invitee must enroll 2FA) · `PATCH /users/{id}` `{ role }` · `POST /users/{id}/reset-2fa` (forces re-enrollment, revokes sessions) · `POST /users/{id}/deactivate` (revokes sessions).
-An admin cannot demote or deactivate themselves → `422`.
+Staff accounts only: there are no public accounts and sign-up is closed, so every account here was invited by an admin.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/users` | Every account, by email. Returns `AdminUser[]` |
+| `POST` | `/users/invite` | `{ email, role, name? }` → `201`. Creates the account with an unusable random password and emails the standard password-reset link, worded as an invite; it is valid **one hour**. `name` defaults to the address's local part. Re-inviting someone who has not yet enrolled two-factor re-sends the link (`201`); an address already in use by an enrolled or deactivated account is `409` |
+| `PATCH` | `/users/{id}` | `{ role }` → `200`. Revokes that user's sessions (rotation on privilege change, SEC-04) |
+| `POST` | `/users/{id}/reset-2fa` | → `200`. Clears the enrolled second factor, revokes sessions and emails the account holder; their next sign-in enrols again |
+| `POST` | `/users/{id}/deactivate` | → `200`. Sets `deactivatedAt`, revokes sessions; sign-in then answers exactly as a wrong password does, and an existing session carries no access |
+| `POST` | `/users/{id}/reactivate` | → `200`. Clears `deactivatedAt`; the account keeps its role and second factor |
+
+`AdminUser` is `{ id, email, name, role, twoFactorEnabled, deactivatedAt, createdAt }`.
+
+An admin cannot demote or deactivate themselves → `422`, so the admins can never all disappear. Every action here writes an `audit_log` row against entity type `user`, recording the role change but never the address's value (DM-12).
 
 ## 8.9 Privacy *(admin only, FR-210, FR-410)*
 

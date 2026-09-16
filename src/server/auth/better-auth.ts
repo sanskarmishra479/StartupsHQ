@@ -4,6 +4,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
 import { twoFactor } from "better-auth/plugins/two-factor";
+import { eq } from "drizzle-orm";
 import { cookiePrefixFor } from "../../lib/auth-cookie";
 import { type Database, getDb } from "../db/client";
 import {
@@ -43,6 +44,35 @@ const SECOND_FACTOR_PATHS: ReadonlySet<string> = new Set([
 ]);
 
 export const PASSWORD_MIN_LENGTH = 12;
+
+/** Invites reuse the password-reset link, marked by the redirect target the users service sets. */
+function isInviteLink(url: string): boolean {
+  try {
+    const callback = new URL(url).searchParams.get("callbackURL");
+    return (
+      callback !== null && new URL(callback).searchParams.get("invite") === "1"
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A deactivated account is refused with exactly the answer a wrong password gets, so the
+ * response never says whether an address exists or has been switched off (FR-208).
+ */
+async function refuseDeactivated(db: Database, email: string): Promise<void> {
+  const [row] = await db
+    .select({ deactivatedAt: users.deactivatedAt })
+    .from(users)
+    .where(eq(users.email, email.trim().toLowerCase()));
+  if (row?.deactivatedAt) {
+    throw new APIError("UNAUTHORIZED", {
+      code: "INVALID_EMAIL_OR_PASSWORD",
+      message: "Invalid email or password",
+    });
+  }
+}
 
 function required(env: Env, name: string): string {
   const value = env[name];
@@ -95,6 +125,7 @@ function createAuth(env: Env, db: Database) {
           defaultValue: "editor",
           input: false,
         },
+        deactivatedAt: { type: "date", required: false, input: false },
       },
     },
     emailAndPassword: {
@@ -104,11 +135,21 @@ function createAuth(env: Env, db: Database) {
       maxPasswordLength: 128,
       revokeSessionsOnPasswordReset: true,
       sendResetPassword: async ({ user, url }) => {
-        await sendEmail({
-          to: user.email,
-          subject: "Reset your startupsHQ password",
-          text: `Someone asked to reset the password for this startupsHQ account.\n\nReset it here within an hour:\n${url}\n\nIf this was not you, ignore this email; your password is unchanged.`,
-        });
+        // A deactivated account cannot sign in, so it is sent no link either.
+        if ((user as { deactivatedAt?: unknown }).deactivatedAt) return;
+        await sendEmail(
+          isInviteLink(url)
+            ? {
+                to: user.email,
+                subject: "You have been invited to startupsHQ",
+                text: `An administrator invited you to the startupsHQ admin panel.\n\nSet your password within the hour:\n${url}\n\nYou will then set up two-factor authentication, which every account needs. If the link has expired, ask an administrator to invite you again.`,
+              }
+            : {
+                to: user.email,
+                subject: "Reset your startupsHQ password",
+                text: `Someone asked to reset the password for this startupsHQ account.\n\nReset it here within an hour:\n${url}\n\nIf this was not you, ignore this email; your password is unchanged.`,
+              },
+        );
       },
     },
     session: {
@@ -160,6 +201,7 @@ function createAuth(env: Env, db: Database) {
             email,
           }),
         );
+        if (email !== undefined) await refuseDeactivated(db, email);
       }),
       after: createAuthMiddleware(async (ctx) => {
         if (ctx.path !== SIGN_IN_PATH || typeof ctx.body?.email !== "string") {

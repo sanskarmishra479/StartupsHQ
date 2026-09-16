@@ -15,7 +15,9 @@ import {
   collectExportedFunctions,
   defineAuthzSuite,
 } from "../testing/authz";
+import { fixtureId, startups as startupsTable } from "../testing/fixtures";
 import { ensureTestUsers } from "../testing/users";
+import * as adminReads from "./admin-reads";
 import * as batchWrites from "./batch-writes";
 import * as batches from "./batches";
 import * as categoryWrites from "./category-writes";
@@ -34,6 +36,7 @@ import * as startupWrites from "./startup-writes";
 import * as startups from "./startups";
 import * as stats from "./stats";
 import * as taxonomy from "./taxonomy";
+import * as users from "./users";
 
 // The authz conformance suite (docs/TEST_PLAN.md §7, SEC-03, NFR-10).
 //
@@ -365,6 +368,48 @@ const REGISTRY: AuthzRegistry = {
     kind: "admin-mutation",
     invoke: (ctx) =>
       privacy.eraseFounder(ctx, NIL_UUID, { confirm: "ERASE nobody" }),
+  },
+  "services/admin-reads.ts#listRecords": {
+    kind: "editor-read",
+    invoke: async (ctx) =>
+      (await adminReads.listRecords(ctx, "startup", { limit: 48 })).data,
+    seesDraft: includesHiddenStartup,
+  },
+  "services/admin-reads.ts#getRecord": {
+    kind: "editor-read",
+    invoke: async (ctx) =>
+      adminReads.getRecord(
+        ctx,
+        "startup",
+        await fixtureId(startupsTable, "stealth-draft-co"),
+      ),
+    seesDraft: (result) => (result as { status?: string }).status === "draft",
+  },
+  // Staff accounts (FR-208): admin-only, reads included.
+  "services/users.ts#listUsers": {
+    kind: "admin-mutation",
+    invoke: (ctx) => users.listUsers(ctx),
+  },
+  "services/users.ts#inviteUser": {
+    kind: "admin-mutation",
+    // A malformed address: an admin gets past the guard and fails validation, inviting nobody.
+    invoke: (ctx) => users.inviteUser(ctx, { email: "nobody", role: "editor" }),
+  },
+  "services/users.ts#changeRole": {
+    kind: "admin-mutation",
+    invoke: (ctx) => users.changeRole(ctx, NIL_UUID, { role: "editor" }),
+  },
+  "services/users.ts#resetTwoFactor": {
+    kind: "admin-mutation",
+    invoke: (ctx) => users.resetTwoFactor(ctx, NIL_UUID),
+  },
+  "services/users.ts#deactivate": {
+    kind: "admin-mutation",
+    invoke: (ctx) => users.deactivate(ctx, NIL_UUID),
+  },
+  "services/users.ts#reactivate": {
+    kind: "admin-mutation",
+    invoke: (ctx) => users.reactivate(ctx, NIL_UUID),
   },
   "services/lifecycle.ts#hardDelete": {
     kind: "admin-mutation",

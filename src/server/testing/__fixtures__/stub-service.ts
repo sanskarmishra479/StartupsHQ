@@ -41,3 +41,9 @@ export async function renameThing(
 export async function purgeThing(ctx: ReadContext): Promise<void> {
   assertAdmin(ctx);
 }
+
+/** An admin-panel read: refuses public callers, and shows drafts to editors. */
+export async function listThingsForEditors(ctx: ReadContext): Promise<Thing[]> {
+  assertEditor(ctx);
+  return [...THINGS];
+}

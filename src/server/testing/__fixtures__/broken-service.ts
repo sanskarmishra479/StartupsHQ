@@ -27,3 +27,8 @@ export async function cachedReadWithoutGuard(
 ): Promise<Thing[]> {
   return THINGS.filter((thing) => thing.status === "published");
 }
+
+/** An admin-panel read that forgets assertEditor(), so anyone could list drafts. */
+export async function unguardedEditorList(_ctx: ReadContext): Promise<Thing[]> {
+  return [...THINGS];
+}

@@ -37,6 +37,8 @@ export const users = pgTable("users", {
   image: text("image"),
   role: userRoleEnum("role").notNull().default("editor"),
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  /** Set when an admin switches the account off (FR-208). Users with history are never deleted. */
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

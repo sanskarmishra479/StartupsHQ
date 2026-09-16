@@ -2,7 +2,12 @@ import "server-only";
 
 import { z } from "zod";
 import { isSlug, MAX_SLUG_LENGTH } from "../../lib/slug";
-import { roundTypeEnum, stageEnum, workTypeEnum } from "../db/schema/enums";
+import {
+  publishStatusEnum,
+  roundTypeEnum,
+  stageEnum,
+  workTypeEnum,
+} from "../db/schema/enums";
 import { type FieldIssue, ValidationError } from "../lib/errors";
 import { SEARCH_TYPES } from "../services/search";
 import { STARTUP_SORTS } from "../services/startups";
@@ -79,6 +84,13 @@ export const searchQuery = z.object({
 
 export const suggestQuery = z.object({
   q: z.string().trim().min(1).max(60),
+});
+
+/** The admin lists (docs/API.md §8.1): drafts and archived records included. */
+export const adminListQuery = z.object({
+  status: z.enum(publishStatusEnum.enumValues).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
+  ...paging,
 });
 
 export const privacyRequestsQuery = z.object({

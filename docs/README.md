@@ -1,6 +1,6 @@
 # startupsHQ — Documentation
 
-**Last updated:** 2026-09-15
+**Last updated:** 2026-09-16
 
 Read in this order. Each document answers a different question; they cross-reference rather than repeat.
 
@@ -72,6 +72,7 @@ Each ADR carries a **Revisit if** line naming the condition that should reopen i
 | 2026-09-15 | Phase 6a: SRS SEC-04 records the cookie spike (`__Host-startupshq.*` works; sessions in Postgres only); SEC-08 records the limiter as built (fail closed as `429` + `Retry-After: 60`, 2FA account lockout disabled, local Redis + serverless-redis-http). Decisions: Resend for email; Redis + SRH containers for local/CI limits |
 | 2026-09-15 | Phase 6b: API §1 "Origins" documents host routing as built in `src/proxy.ts` — unknown hosts are public, admin host limited to `/admin`, `/api/auth`, `/api/v1`, `X-Robots-Tag: noindex` there. Phase 6 complete; session rotation on role change and invite/2FA-reset emails move to the users service |
 | 2026-09-15 | Phase 7: API §1 — a single-valued query param given twice is `400`; sub-resources answer only to the current slug. §6.8 and §6.10 name `GET /startups` as the source of later cohort and category pages. TEST_PLAN §9 records where the read contract tests live. Phase 7 complete |
+| 2026-09-16 | Phase 8b/8c: API §7.10 adds `AdminListItem`/`AdminRecord` (admin origin only, `values` mirrors what PATCH accepts); §8.1 documents the admin list and record; §8.8 documents staff accounts as built, including `POST /users/{id}/reactivate`; §5 records that the per-account write budget fails open. SRS SEC-04 (session rotation on privilege change), SEC-08 (write budget) and FR-208 updated; TEST_PLAN §7 gains the `editor-read` harness kind. Migrations 0005 (`users.deactivated_at`) and 0006 (audit actions). **v1 contract frozen** |
 | 2026-09-15 | Phase 8a: API §8 states the order of checks, the 256 KB JSON body cap (`413`), `Cache-Control: private, no-store`, the write response shapes, `204` for industries and category copy, and that writes put the id where public reads put the slug. TEST_PLAN §9 records the write contract tests |
 | 2026-09-14 | Decisions: direct pushes to `main` with required CI (fix red runs immediately); no license — all rights reserved |
 | 2026-09-14 | Phase 0 complete. Dependabot cannot update pnpm 12 lockfiles: npm removed from Dependabot, weekly full-lockfile audit added; npm version updates by monthly manual review |

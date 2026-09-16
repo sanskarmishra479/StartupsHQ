@@ -43,7 +43,7 @@ export const auditLog = pgTable(
   (t) => [
     check(
       "audit_log_action",
-      sql`${t.action} in ('create', 'update', 'archive', 'restore', 'publish', 'unpublish', 'slug_change', 'hard_delete', 'erase')`,
+      sql`${t.action} in ('create', 'update', 'archive', 'restore', 'publish', 'unpublish', 'slug_change', 'hard_delete', 'erase', 'invite', 'role_change', 'reset_two_factor', 'deactivate', 'reactivate')`,
     ),
     index("audit_log_entity_idx").on(
       t.entityType,

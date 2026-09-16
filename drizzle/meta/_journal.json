@@ -36,6 +36,20 @@
       "when": 1789453756260,
       "tag": "0004_founder_erasure_scrub",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789531165624,
+      "tag": "0005_users_deactivated_at",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789531671371,
+      "tag": "0006_audit_log_user_actions",
+      "breakpoints": true
     }
   ]
 }

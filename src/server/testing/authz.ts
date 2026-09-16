@@ -17,6 +17,7 @@ import { ForbiddenError } from "../lib/errors";
 // Every exported function in src/server/services and src/server/cache is registered with its
 // kind, and each kind has a contract:
 //   read            public, public-read and forged contexts never see a draft; an editor does
+//   editor-read     public, public-read and forged contexts are refused; editors do see drafts
 //   cached-read     PUBLIC_READ works and hides drafts; every other context throws
 //   mutation        public, public-read and forged contexts are refused; editors and admins are not
 //   admin-mutation  as mutation, and editors are refused too
@@ -31,6 +32,12 @@ export type AuthzEntry =
   | {
       kind: "cached-read";
       invoke: (ctx: PublicReadContext) => unknown;
+      seesDraft: (result: unknown) => boolean;
+    }
+  | {
+      /** An admin-panel read: refuses public callers outright and shows drafts to editors. */
+      kind: "editor-read";
+      invoke: (ctx: ReadContext) => unknown;
       seesDraft: (result: unknown) => boolean;
     }
   | { kind: "mutation"; invoke: (ctx: ReadContext) => unknown }
@@ -123,7 +130,7 @@ export async function authzViolations(entry: AuthzEntry): Promise<string[]> {
   const violations: string[] = [];
 
   const mustRefuse = async (names: readonly ContextName[]) => {
-    if (entry.kind !== "mutation" && entry.kind !== "admin-mutation") return;
+    if (entry.kind === "read" || entry.kind === "cached-read") return;
     for (const name of names) {
       if (!isForbidden(await attempt(() => entry.invoke(contexts[name])))) {
         violations.push(`${name} was not refused`);
@@ -131,7 +138,7 @@ export async function authzViolations(entry: AuthzEntry): Promise<string[]> {
     }
   };
   const mustAdmit = async (names: readonly ContextName[]) => {
-    if (entry.kind !== "mutation" && entry.kind !== "admin-mutation") return;
+    if (entry.kind === "read" || entry.kind === "cached-read") return;
     for (const name of names) {
       if (isForbidden(await attempt(() => entry.invoke(contexts[name])))) {
         violations.push(`${name} was refused`);
@@ -149,6 +156,18 @@ export async function authzViolations(entry: AuthzEntry): Promise<string[]> {
       await mustRefuse(["anonymous", "publicRead", "forgedAdmin", "editor"]);
       await mustAdmit(["admin"]);
       break;
+
+    case "editor-read": {
+      await mustRefuse(["anonymous", "publicRead", "forgedAdmin"]);
+      for (const name of ["editor", "admin"] as const) {
+        const outcome = await attempt(() => entry.invoke(contexts[name]));
+        if (!outcome.ok) violations.push(`${name} read failed`);
+        else if (!entry.seesDraft(outcome.value)) {
+          violations.push(`${name} could not see drafts`);
+        }
+      }
+      break;
+    }
 
     case "read": {
       for (const name of ["anonymous", "publicRead", "forgedAdmin"] as const) {

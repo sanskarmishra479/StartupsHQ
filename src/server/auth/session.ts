@@ -44,11 +44,14 @@ export async function getSessionStatus(
   }
   if (!session) return anonymous;
 
-  const { id, role, twoFactorEnabled } = session.user as {
+  const { id, role, twoFactorEnabled, deactivatedAt } = session.user as {
     id: string;
     role?: unknown;
     twoFactorEnabled?: unknown;
+    deactivatedAt?: unknown;
   };
+  // Deactivated accounts keep no access even if a session row somehow survived (FR-208).
+  if (deactivatedAt) return anonymous;
   if (role !== "admin" && role !== "editor") return anonymous;
   if (twoFactorEnabled !== true) {
     return { kind: "enrollment-required", ctx: publicContext(ip), userId: id };

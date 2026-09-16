@@ -1,6 +1,6 @@
 # startupsHQ — Test Plan
 
-**Status:** Draft v2 · **Last updated:** 2026-09-15 · Companion to [SRS.md](./SRS.md)
+**Status:** Draft v2 · **Last updated:** 2026-09-16 · Companion to [SRS.md](./SRS.md)
 
 Every `SEC-*`, `FR-*` and `NFR-*` requirement in SRS.md must have a named verification here. A requirement with no test is not implemented — only intended.
 
@@ -124,6 +124,10 @@ for each CACHED public read (src/server/cache/**):
   └─ called with publicContext(ip) at runtime (type-cast)     → throws
      (the parameter type already makes both a compile error; this proves the runtime guard)
 
+for each ADMIN-PANEL READ (editor-read — src/server/services/admin-reads.ts):
+  ├─ publicContext(), PUBLIC_READ, forged → throws ForbiddenError
+  └─ authedContext(editor/admin)          → sees the draft fixture
+
 for each MUTATION:
   ├─ publicContext()          → throws ForbiddenError
   └─ authedContext(editor)    → succeeds
@@ -134,6 +138,8 @@ for each ADMIN-ONLY mutation (hard delete, slug change, users, privacy, manual F
 registry completeness:
   └─ every exported function appears in exactly one table → else FAIL naming it
 ```
+
+Kinds: `read`, `editor-read`, `cached-read`, `mutation`, `admin-mutation`. Admin-only reads (staff accounts, privacy requests) are registered as `admin-mutation`, whose contract — refuse everyone up to and including an editor, admit an admin — is exactly what they need.
 
 `user_role` has only `admin` and `editor`; "wrong role" is tested as *editor attempting an admin-only action*.
 
@@ -150,7 +156,7 @@ A compile-time check (`tsd` / `expectTypeOf`) asserts that a function in `src/se
 | **SEC-05** | `safe-fetch.spec.ts` **and** `POST /prefill` contract tests: `http://…` (non-https); `https://localhost`; `https://127.0.0.1`; `https://[::1]`; `https://[::ffff:127.0.0.1]`; `https://10.0.0.1`; `https://172.16.0.1`; `https://192.168.1.1`; `https://100.64.0.1`; `https://169.254.169.254/latest/meta-data/`; `https://2130706433/`; **DNS rebinding mock** (first resolution public, second private); a public page **redirecting** to a private IP; a 4-hop redirect chain; a 50 MB body; a 30 s hanging server; **a public page whose `og:image` points at `169.254.169.254`**; **a Firecrawl mock returning a private-IP image URL** | every one rejected; the page-level cases return `400 UNSAFE_URL`; the image-level cases return `200` with the image omitted and a warning; no socket to a private address is ever opened (asserted via the connect hook) |
 | SEC-06 | `media.spec.ts`: PNG renamed `.jpg`; 6 MB file; **5 MB PNG declaring 50,000 × 50,000 px**; EXIF-GPS JPEG; SVG with script and external `href`; polyglot GIF/JS | sniffed type wins; 413; **422 IMAGE_TOO_LARGE without exhausting memory**; EXIF absent; SVG rasterized with no external fetch; polyglot rejected |
 | SEC-07 | `import.spec.ts`: 1,001 rows; a `=HYPERLINK(…)` cell; commit without dry-run; commit after a conflicting insert; commit after 24 h; failure on row 15 of 20 | cap enforced; value stored raw and neutralized only in `export.csv`; 409s as specified; zero rows persisted on rollback |
-| SEC-08 | Rate-limit integration tests + WAF config review | 21st login attempt / 15 min from one IP → 429; 6th failure for one email → delayed response, **account still usable from another IP after the delay** (no lockout); 21st prefill / hour → 429; Upstash unavailable → login and prefill fail closed; WAF rules exist for `/api/v1/*` |
+| SEC-08 | Rate-limit integration tests + WAF config review | 121st write / min by one staff account → 429 with `Retry-After`, and a limiter outage still allows writes (fails open); 21st login attempt / 15 min from one IP → 429; 6th failure for one email → delayed response, **account still usable from another IP after the delay** (no lockout); 21st prefill / hour → 429; Upstash unavailable → login and prefill fail closed; WAF rules exist for `/api/v1/*` |
 | SEC-09 | `headers.spec.ts` against a production build, both origins | admin: nonce CSP with `strict-dynamic`, nonce differs per request; public: SRI hash CSP (or documented fallback) and page still statically cached; HSTS **without** `preload`; nosniff; Referrer-Policy; X-Frame-Options DENY |
 | SEC-10 | Role tests | `app_rw`: `CREATE TABLE` denied, `UPDATE audit_log` denied; `retention`: can only touch `audit_log`; `backup_ro`: writes denied; migrator credential absent from Vercel env listing (checklist) |
 | SEC-11 | `audit.spec.ts` + retention job test | every mutation audited; personal fields have no values; job nulls IPs > 90 days and deletes rows > 12 months; app code has no UPDATE/DELETE path on `audit_log` |
@@ -178,6 +184,8 @@ For every endpoint in [API.md](./API.md): success shape, status, envelope and ea
 Reads: `src/app/api/v1/read-endpoints.test.ts` calls each route handler as Next.js does and validates bodies against strict schemas in `src/server/testing/contract.ts`, so an undocumented field — including any admin-only one — fails (SEC-15). Cursor stability is checked by publishing a company between two page requests for each sort. Wrapper behaviour (SEC-12 forced 500, SEC-14 spoofed headers, envelopes) is unit-tested in `src/server/http/handler.test.ts`.
 
 Writes: `src/app/api/v1/write-endpoints.test.ts` signs in real users who completed TOTP (and one who did not) and covers, per SEC-04: the check order (origin 403 and content type 415 even with a valid session, then 401 and 403), the public-origin 404 through `proxy.ts`, malformed/unknown/oversized bodies, and each lifecycle, slug, relationship, category and privacy endpoint end to end, reading public pages back where a write changes them. Test users who wrote audit rows are kept and signed out, since audit history keeps its actor.
+
+Admin reads and staff accounts: `src/app/api/v1/admin-endpoints.test.ts` — an admin list shows the draft and archived fixtures while the public grid on the same path does not; `status` and `q` filter (a `%` search matches nothing, proving the term is a literal); an admin record carries `values`, `derived` and `links` and never `status` among its values; an unknown or non-uuid id is 404; `/founders` off the admin origin is 404. Staff accounts: editors are refused (403); an invite emails a one-hour link whose token sets a password, after which the account is still only `enrollment-required` (FR-201); re-invites re-send; a role change, a two-factor reset and a deactivation each end that user's session; a deactivated account's sign-in response is byte-for-byte a wrong-password response; self-demotion and self-deactivation are 422; reactivation restores the account. The write budget: the 121st write in a minute by one account is 429 with `Retry-After`.
 
 ## 10. E2E scenarios (Playwright)
 
