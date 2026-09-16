@@ -30,7 +30,8 @@
     "media:gc": "NODE_OPTIONS=--conditions=react-server tsx scripts/media-gc.ts",
     "try:prefill": "NODE_OPTIONS=--conditions=react-server tsx scripts/try-prefill.ts",
     "audit:retention": "NODE_OPTIONS=--conditions=react-server tsx scripts/audit-retention.ts",
-    "fx:import": "NODE_OPTIONS=--conditions=react-server tsx scripts/fx-import.ts"
+    "fx:import": "NODE_OPTIONS=--conditions=react-server tsx scripts/fx-import.ts",
+    "brand:icons": "tsx scripts/brand-icons.ts"
   },
   "dependencies": {
     "@upstash/redis": "1.38.4",
