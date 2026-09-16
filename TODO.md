@@ -423,6 +423,7 @@ Verified by driving the dev and production servers in Chromium: axe clean on `/`
 ## Phase 22 · Production operations & deploy  *(NFR-11, NFR-12, SEC-08, SEC-16, SEC-17)*
 
 - [ ] **Accounts & plans (you):** Vercel **Pro** with spend management; Neon **Launch**; Upstash; Cloudflare R2 bucket with 30-day lifecycle; email provider; Sentry
+- [ ] **Builds need the database (Phase 14):** `/` and `/companies` prerender from cached reads, so Vercel builds must have `DATABASE_URL` and `CURSOR_SIGNING_SECRET` for their environment — previews against their Neon branch, production against production. CI builds against the seeded test database
 - [ ] Call `attachDatabasePool(pool)` from `@vercel/functions` in `db/client.ts` so Fluid compute drains idle Neon connections before a function suspends
 - [ ] **Verify cache persistence on Vercel (NFR-02, ADR-013):** Next.js documents that the default in-memory `'use cache'` store usually does not persist across serverless instances. Against a preview deploy, request one company page from two clients and count DB queries. If entries are not shared, decide between relying on prerendered/ISR page output and `'use cache: remote'` (platform cache, extra cost) — a decision for the owner, with numbers
 - [ ] **Budget alerts** at 50 / 80 / 100% on Vercel, Neon, Upstash

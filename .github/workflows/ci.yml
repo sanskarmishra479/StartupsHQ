@@ -69,11 +69,20 @@ jobs:
       - name: Unit and integration tests
         run: pnpm test
 
+      # Public pages prerender from cached database reads (ADR-013), so the build needs a
+      # database: here the test database the suite just migrated and seeded with fictional data.
       - name: Build
         run: pnpm build
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          CURSOR_SIGNING_SECRET: ci-only-cursor-signing-key-never-used-outside-ci
 
+      # Given the build's values, so the scan proves they never reached a browser bundle.
       - name: Client bundle secret scan (SEC-01)
         run: pnpm check:leak
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
+          CURSOR_SIGNING_SECRET: ci-only-cursor-signing-key-never-used-outside-ci
 
       - name: Dependency audit (fails on high severity)
         run: pnpm audit --audit-level high
