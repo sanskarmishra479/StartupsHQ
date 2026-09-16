@@ -104,6 +104,12 @@ export class UnprocessableError extends AppError {
   }
 }
 
+export class PayloadTooLargeError extends AppError {
+  constructor(message = "The request body is too large.") {
+    super("PAYLOAD_TOO_LARGE", 413, message);
+  }
+}
+
 export class UnsupportedMediaTypeError extends AppError {
   constructor(message = "Unsupported content type.") {
     super("UNSUPPORTED_MEDIA_TYPE", 415, message);

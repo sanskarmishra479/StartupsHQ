@@ -1,0 +1,53 @@
+# Scheduled housekeeping (ARCHITECTURE §ops). Media GC lands in Phase 9; audit retention and the
+# FX rate import join it in later phases.
+#
+# Inert until Phase 22: set the repository variable ENABLE_MAINTENANCE=true once the `production`
+# environment holds DATABASE_URL and BLOB_READ_WRITE_TOKEN.
+name: Maintenance
+
+on:
+  schedule:
+    # Mondays, 03:17 UTC — off the hour, so it does not collide with everyone else's jobs.
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+
+jobs:
+  media-gc:
+    name: media garbage collection
+    if: ${{ vars.ENABLE_MAINTENANCE == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Enable pnpm (version from package.json)
+        run: corepack enable pnpm
+
+      - name: Install (frozen lockfile, supply-chain policies)
+        run: pnpm install --frozen-lockfile
+
+      - name: Delete staged and unreferenced media
+        run: pnpm media:gc
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}

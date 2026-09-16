@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 8 complete — Phase 9 (media pipeline) next · **Last updated:** 2026-09-16
+**Status:** Phase 9 complete — Phase 10 (paste-URL prefill) next · **Last updated:** 2026-09-16
 
 ---
 
@@ -225,16 +225,16 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 ## Phase 9 · Media pipeline  *(SEC-06, FR-408, FR-111)*
 
-- [ ] `services/media.ts` — magic-byte sniff, allowlist, 5 MB cap
-- [ ] sharp: `limitInputPixels: 24_000_000`, `failOn: 'error'`, capped SVG density, no external SVG refs, output dimension caps
-- [ ] WebP variants per purpose (logo 64/128/256 · cover 640/1280/1920 · photo 128/256/512) + blur placeholder
-- [ ] Blob upload under random prefixes; `media_assets` in `staging`; attach on entity save
-- [ ] **OG image rendering** at publish/update via `next/og` → `og` asset **(FR-111)**
-- [ ] `POST /api/v1/media`
-- [ ] `maintenance.yml` → media GC job (staging > 24 h, unreferenced > 7 days)
-- [ ] Tests per SEC-06 matrix, incl. the 50,000 × 50,000 px bomb completing without memory blow-up
+- [x] `services/media.ts` — magic-byte sniff, allowlist (jpg/png/webp; **SVG refused**, tightening SEC-06), 5 MB cap
+- [x] sharp: `limitInputPixels: 24_000_000`, `failOn: 'error'`, output dimension caps. SVG density and external refs are moot now that SVG is refused. Dimensions are read from the header with the limit off, so a bomb answers `422 IMAGE_TOO_LARGE` rather than "unreadable"
+- [x] WebP variants per purpose (logo 64/128/256 · cover 640/1280/1920 · photo 128/256/512) + blur placeholder
+- [x] Blob upload under random prefixes; `media_assets` in `staging`; attach on entity save — `lib/blob.ts` keeps blobs in memory without a token, so development and tests never reach the network
+- [x] **OG image rendering** at publish/update via `next/og` → `og` asset **(FR-111)** — `media.refreshOgImage`, called by the publish and update routes; a failure is logged and never undoes the write
+- [x] `POST /api/v1/media`
+- [x] `maintenance.yml` → media GC job (staging > 24 h, unreferenced > 7 days) — `pnpm media:gc`, inert until `ENABLE_MAINTENANCE=true` in Phase 22
+- [x] Tests per SEC-06 matrix, incl. the 50,000 × 50,000 px bomb completing without memory blow-up
 
-**EXIT:** upload → variants → Blob → attach works · every SEC-06 test green · GC test green.
+**EXIT:** ✅ upload → variants → Blob → attach works · every SEC-06 test green · GC test green · share cards render through `next/og` in the test suite.
 
 ---
 

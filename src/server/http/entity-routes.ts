@@ -6,6 +6,7 @@ import * as batchWrites from "../services/batch-writes";
 import * as founderWrites from "../services/founder-writes";
 import * as investorWrites from "../services/investor-writes";
 import * as lifecycle from "../services/lifecycle";
+import * as media from "../services/media";
 import * as roundWrites from "../services/round-writes";
 import * as slugWrites from "../services/slug-writes";
 import * as startupWrites from "../services/startup-writes";
@@ -23,6 +24,25 @@ type EntityWrites = Readonly<{
 
 const deleteQuery = z.object({ hard: z.enum(["true", "false"]).optional() });
 
+/**
+ * FR-111: the share card is rendered at publish and re-rendered when a live record is edited.
+ * A rendering failure must not undo the write, so it is logged and the response still succeeds;
+ * the page then falls back to no `og:image` until the next save.
+ */
+async function refreshShareCard(
+  ctx: AuthedContext,
+  entity: lifecycle.LifecycleEntity,
+  id: string,
+  status: string,
+): Promise<void> {
+  if (entity === "round" || status !== "published") return;
+  try {
+    await media.refreshOgImage(ctx, entity, id);
+  } catch (error) {
+    console.error(`[api] no share card rendered for ${entity} ${id}`, error);
+  }
+}
+
 function entityRoutes(
   entity: lifecycle.LifecycleEntity,
   writes: EntityWrites,
@@ -31,10 +51,14 @@ function entityRoutes(
   const idOf = (params: Readonly<Record<string, string>>) =>
     uuidParam(params, idKey);
 
-  const action = (run: typeof lifecycle.publish) =>
-    authedRoute({ access: "editor" }, async ({ ctx, params }) =>
-      resource(await run(ctx, entity, idOf(params))),
-    );
+  const action = (run: typeof lifecycle.publish, rendersShareCard = false) =>
+    authedRoute({ access: "editor" }, async ({ ctx, params }) => {
+      const result = await run(ctx, entity, idOf(params));
+      if (rendersShareCard) {
+        await refreshShareCard(ctx, entity, result.id, result.status);
+      }
+      return resource(result);
+    });
 
   return {
     /** `POST /{entity}` → 201, always a draft. */
@@ -45,8 +69,15 @@ function entityRoutes(
     /** `PATCH /{entity}/{id}` */
     update: authedRoute(
       { access: "editor", body: "json" },
-      async ({ ctx, params, body }) =>
-        resource(await writes.update(ctx, idOf(params), body as never)),
+      async ({ ctx, params, body }) => {
+        const result = (await writes.update(
+          ctx,
+          idOf(params),
+          body as never,
+        )) as { id: string; status: string };
+        await refreshShareCard(ctx, entity, result.id, result.status);
+        return resource(result);
+      },
     ),
     /** `DELETE /{entity}/{id}` archives; `?hard=true` deletes, admin only (checked by the service). */
     remove: authedRoute(
@@ -61,7 +92,7 @@ function entityRoutes(
         return noContent();
       },
     ),
-    publish: action(lifecycle.publish),
+    publish: action(lifecycle.publish, true),
     unpublish: action(lifecycle.unpublish),
     restore: action(lifecycle.restore),
     /** `POST /{entity}/{id}/slug`, admin only (FR-409). */

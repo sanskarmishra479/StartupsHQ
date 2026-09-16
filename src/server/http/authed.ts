@@ -5,8 +5,8 @@ import type { z } from "zod";
 import type { AuthedContext } from "../auth/context";
 import { requireAdmin, requireEditor } from "../auth/session";
 import {
-  AppError,
   NotFoundError,
+  PayloadTooLargeError,
   RateLimitedError,
   ValidationError,
 } from "../lib/errors";
@@ -48,6 +48,8 @@ export type Access = "editor" | "admin";
 
 export type AuthedRequest<Query> = Readonly<{
   ctx: AuthedContext;
+  /** The raw request, for the few endpoints that read their own body (uploads, CSV). */
+  request: Request;
   params: Readonly<Record<string, string>>;
   query: Query;
   /** Parsed JSON, not yet validated: the service validates it. */
@@ -60,12 +62,6 @@ export type AuthedOptions<S extends z.ZodObject> = Readonly<{
   body?: "json";
   query?: S;
 }>;
-
-class PayloadTooLargeError extends AppError {
-  constructor() {
-    super("PAYLOAD_TOO_LARGE", 413, "The request body is too large.");
-  }
-}
 
 const invalidJson = () =>
   new ValidationError(
@@ -202,7 +198,7 @@ export function authedRoute<S extends z.ZodObject = typeof noQuery>(
         options.body === "json" ? await readJsonBody(request) : undefined;
 
       return noStore(
-        toResponse(await handle({ ctx, params, query, body }), url),
+        toResponse(await handle({ ctx, params, query, body, request }), url),
       );
     } catch (error) {
       unstable_rethrow(error);

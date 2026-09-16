@@ -26,6 +26,7 @@ import * as founders from "./founders";
 import * as investorWrites from "./investor-writes";
 import * as investors from "./investors";
 import * as lifecycle from "./lifecycle";
+import * as media from "./media";
 import * as privacy from "./privacy";
 import * as relationWrites from "./relation-writes";
 import * as roundWrites from "./round-writes";
@@ -384,6 +385,26 @@ const REGISTRY: AuthzRegistry = {
         await fixtureId(startupsTable, "stealth-draft-co"),
       ),
     seesDraft: (result) => (result as { status?: string }).status === "draft",
+  },
+  // Media (FR-408, FR-111). A 1x1 PNG is the smallest thing the pipeline accepts.
+  "services/media.ts#upload": {
+    kind: "mutation",
+    invoke: (ctx) =>
+      media.upload(ctx, {
+        purpose: "logo",
+        bytes: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      }),
+  },
+  "services/media.ts#refreshOgImage": {
+    kind: "mutation",
+    invoke: (ctx) => media.refreshOgImage(ctx, "startup", NIL_UUID),
+  },
+  "services/media.ts#collectGarbage": {
+    kind: "admin-mutation",
+    invoke: (ctx) => media.collectGarbage(ctx),
   },
   // Staff accounts (FR-208): admin-only, reads included.
   "services/users.ts#listUsers": {

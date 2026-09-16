@@ -1,6 +1,6 @@
 # startupsHQ — API Contract
 
-**Status:** §6, §7 and §8.1–8.4, §8.8, §8.9 implemented; media (§8.5), prefill (§8.6) and CSV import (§8.7) specified · **v1 frozen 2026-09-16** (§9) · **Version:** v1 (draft 2) · **Last updated:** 2026-09-16
+**Status:** §6, §7 and §8.1–8.5, §8.8, §8.9 implemented; prefill (§8.6) and CSV import (§8.7) specified · **v1 frozen 2026-09-16** (§9) · **Version:** v1 (draft 2) · **Last updated:** 2026-09-16
 **Requirements authority:** [SRS.md](./SRS.md) · This document is the authority on **paths, params, DTO shapes and status codes**.
 
 > **How to read this document.** It is written **design-first**: it specifies the contract handlers must satisfy, not code that exists. TODO Phase 8 implements it; Phase 12 verifies every shape against the real handlers via the contract tests in [TEST_PLAN.md](./TEST_PLAN.md) §9. If implementation diverges, both this document and the handler are suspect — resolve deliberately.
@@ -485,9 +485,9 @@ Duplicate link → `409` (enforced by `NULLS NOT DISTINCT` uniqueness). `leftYea
 
 ## 8.5 `POST /media` *(SEC-06, FR-408)*
 
-`multipart/form-data`: `file`, `purpose` ∈ `logo` | `cover` | `photo`.
+`multipart/form-data`: `file`, `purpose` ∈ `logo` | `cover` | `photo`. Anything else is `415`; a missing file or unknown purpose is `400`.
 
-Sniffed MIME; allowlist jpg/png/webp/svg; 5 MB (`413`); 24 MP pixel limit (`422 IMAGE_TOO_LARGE`); SVG rasterized at capped density with external references disallowed; re-encoded to WebP variants; stored under a random prefix as a **staging** asset (garbage-collected after 24 h unless attached).
+Type comes from the magic bytes — never the filename or the declared `Content-Type`. **Allowlist jpg/png/webp: SVG is refused with `415`** (tightened 2026-09-16 — we always rasterise, so reading XML would add the most-exploited parser in image handling for no gain; editors export PNG instead). 5 MB cap (`413`), checked before the bytes are read. Dimensions are read from the header and refused over 24 MP (`422 IMAGE_TOO_LARGE`) before anything is decoded. The image is then re-encoded to WebP at each width its purpose needs — never upscaled, so a source narrower than a width simply yields fewer variants — which also strips EXIF and anything embedded. Files are written under a random prefix as a **staging** asset, garbage-collected after 24 h unless a saved record attaches it. `og` is not an accepted purpose: share cards are rendered by the server (FR-111).
 
 ```json
 { "data": { "assetId": "m-51c2…", "state": "staging", "purpose": "logo",
