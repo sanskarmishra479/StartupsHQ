@@ -1,26 +1,244 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Design tokens (TODO Phase 13; NFR-04, NFR-06).
+ *
+ * Dark is the default look. A viewer's choice is stored by the theme toggle and applied to
+ * <html data-theme> before first paint by /theme.js:
+ *   (none) | "dark"  → dark
+ *   "light"          → light
+ *   "system"         → follows prefers-color-scheme
+ *
+ * Text colours are opaque so their contrast can be checked mechanically: see
+ * src/app/tokens.test.ts, which holds every text/background pair to ≥ 4.5:1 in both themes.
+ * Change a colour here and that test tells you whether it is still legible.
+ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #000000;
+  --surface: #0c0c0c;
+  --surface-raised: #161616;
+  --surface-hover: #1c1c1c;
+
+  --fg: #f5f5f5;
+  --fg-muted: #b3b3b3;
+  --fg-subtle: #8f8f8f;
+
+  --border: #262626;
+  --border-strong: #3d3d3d;
+
+  /* The white "Let's Talk" pill of the reference: the strongest control on the page. */
+  --inverse-bg: #f5f5f5;
+  --inverse-fg: #000000;
+
+  /* Frosted chrome floating over the canvas. */
+  --glass: rgb(22 22 22 / 0.72);
+  --glass-border: rgb(255 255 255 / 0.1);
+
+  /* Neutral until the accent colour is chosen (TODO Phase 13). */
+  --accent: #f5f5f5;
+  --accent-fg: #000000;
+
+  --focus-ring: #f5f5f5;
+  --danger: #ff8a80;
+
+  /* Placeholder tile behind a missing cover or logo. */
+  --placeholder: #141414;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #ffffff;
+  --surface: #f7f7f7;
+  --surface-raised: #efefef;
+  --surface-hover: #e9e9e9;
+
+  --fg: #0a0a0a;
+  --fg-muted: #4d4d4d;
+  --fg-subtle: #636363;
+
+  --border: #e3e3e3;
+  --border-strong: #c7c7c7;
+
+  --inverse-bg: #0a0a0a;
+  --inverse-fg: #ffffff;
+
+  --glass: rgb(255 255 255 / 0.72);
+  --glass-border: rgb(0 0 0 / 0.08);
+
+  --accent: #0a0a0a;
+  --accent-fg: #ffffff;
+
+  --focus-ring: #0a0a0a;
+  --danger: #b3261e;
+
+  --placeholder: #f0f0f0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@media (prefers-color-scheme: light) {
+  [data-theme="system"] {
+    color-scheme: light;
+
+    --bg: #ffffff;
+    --surface: #f7f7f7;
+    --surface-raised: #efefef;
+    --surface-hover: #e9e9e9;
+
+    --fg: #0a0a0a;
+    --fg-muted: #4d4d4d;
+    --fg-subtle: #636363;
+
+    --border: #e3e3e3;
+    --border-strong: #c7c7c7;
+
+    --inverse-bg: #0a0a0a;
+    --inverse-fg: #ffffff;
+
+    --glass: rgb(255 255 255 / 0.72);
+    --glass-border: rgb(0 0 0 / 0.08);
+
+    --accent: #0a0a0a;
+    --accent-fg: #ffffff;
+
+    --focus-ring: #0a0a0a;
+    --danger: #b3261e;
+
+    --placeholder: #f0f0f0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * Tailwind's stock palette is switched off, so every colour in the UI comes from the tokens
+ * above and follows the theme. Utilities: bg-bg, text-fg-muted, border-border, bg-glass, …
+ */
+@theme inline {
+  --color-*: initial;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-hover: var(--surface-hover);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-inverse-bg: var(--inverse-bg);
+  --color-inverse-fg: var(--inverse-fg);
+  --color-glass: var(--glass);
+  --color-glass-border: var(--glass-border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-focus-ring: var(--focus-ring);
+  --color-danger: var(--danger);
+  --color-placeholder: var(--placeholder);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+@theme {
+  /* Type scale. `meta` is the tiny monospace caps used for card corners and chrome. */
+  --text-meta: 0.6875rem;
+  --text-meta--line-height: 1rem;
+  --text-meta--letter-spacing: 0.08em;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.625rem;
+  --text-xl: 1.375rem;
+  --text-xl--line-height: 1.875rem;
+  --text-2xl: 1.75rem;
+  --text-2xl--line-height: 2.125rem;
+  --text-3xl: 2.25rem;
+  --text-3xl--line-height: 2.5rem;
+  --text-display: clamp(2.5rem, 1.6rem + 3.6vw, 4.5rem);
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.035em;
+
+  /* Radii. Chrome controls are fully rounded; cards are near-square hairline cells. */
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-pill: 9999px;
+
+  /* Motion. */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 400ms;
+
+  --blur-glass: 16px;
+
+  /* The OpenGraph ratio every card cover uses (1200×630). */
+  --aspect-cover: 1200 / 630;
+}
+
+@layer base {
+  html {
+    background: var(--bg);
+    color: var(--fg);
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+    /* NFR-05: nothing may scroll the page sideways. */
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background: var(--inverse-bg);
+    color: var(--inverse-fg);
+  }
+
+  /* One focus style everywhere, visible on both themes (NFR-04). */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@utility meta {
+  font-family: var(--font-mono);
+  font-size: var(--text-meta);
+  line-height: var(--text-meta--line-height);
+  letter-spacing: var(--text-meta--letter-spacing);
+  text-transform: uppercase;
+}
+
+@utility glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(1.4);
+  backdrop-filter: blur(var(--blur-glass)) saturate(1.4);
+}
+
+/* Components animate only through the motion tokens, so reduced motion switches them all off. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+    --default-transition-duration: 0ms;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
 }
