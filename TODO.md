@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** Phase 12 complete — **backend done (M5)** — Phase 13 (design system) next · **Last updated:** 2026-09-16
+**Status:** **backend done (M5)** — Phase 13 (design system) in progress · **Last updated:** 2026-09-16
 
 ---
 
@@ -300,19 +300,39 @@ All of `SEC-01`…`SEC-18` are verified at backend level, the API contract is fr
 
 ## Phase 13 · Design system  *(NFR-04, NFR-05, NFR-06)*
 
-- [ ] Tokens as CSS custom properties (color, spacing, radii, shadows, type scale); dark mode via `prefers-color-scheme` + `[data-theme]`
-- [ ] Typography: display + text face, tuned scale
-- [ ] shadcn/ui restyled to tokens
-- [ ] Primitives: `EntityCard`, `ResponsiveImage` (srcset from `variants`, blur placeholder), `InitialsAvatar`, `MetaRow`, `StatTile`, `Money` (USD + original currency), `SectionHeading`, `EmptyState`, `LoadMore`
+**Direction (decided 2026-09-16, do not re-ask):** the *feel* of phantom.land over startups.gallery's content model. The full reference analysis and guardrails were recorded in the approved frontend plan; the durable parts land in PRD §2, SRS §6.1 and ADR-022 (step 6 below).
+
+| Decision | Outcome |
+|---|---|
+| Theme | **Dark-first**, light kept (NFR-06 unchanged) |
+| `/` | Immersive landing: the **up to 300 most recently added** startups on a curved, endlessly wrapping WebGL grid — the same on phone, tablet and desktop, touch included. Real HTML links always in the page; flat grid only for reduced motion or no WebGL |
+| Full list | **`/companies`** — the FR-101 explore grid moves here, same cards and styles, no curvature |
+| Cards | Landscape at the OG ratio **1.91:1** (1200×630), `object-fit: cover`; logo on a neutral tile when there is no cover |
+| Fonts | **Geist + Geist Mono**, self-hosted via `next/font` |
+| WebGL | **OGL**, pinned, bundled (CSP) and lazy-loaded after the HTML grid |
+| Logo | A square mark (`public/brand/`); display name **"StartupsHQ"** |
+| Accent colour | Open — tokens ship neutral; chosen while reviewing the gallery |
+| Order | Public site first (13–17), then admin (18) |
+
+- [ ] Tokens as CSS custom properties (colour, spacing, radii incl. pill, type scale, motion); dark default, light via `[data-theme]`, "system" via `prefers-color-scheme`; toggle persisted per viewer without an inline script (public CSP)
+- [ ] Typography: Geist scale, Geist Mono metadata style; create-next-app defaults removed
+- [ ] Brand: sanitised inline `Logo`; `favicon.ico`, `icon.svg`, `apple-icon.png`; user-facing name "StartupsHQ"
+- [ ] Primitives: `PillButton`, `SegmentedNav`, `IconToggle`, `Chip`, `EntityCard`, `ResponsiveImage` (srcset from `variants`, blur placeholder), `InitialsAvatar`, `MetaRow`, `StatTile`, `Money` (USD + original currency), `SectionHeading`, `EmptyState`, `LoadMore`
+- [ ] Client-safe public DTO types in `src/types`, checked against the server DTOs — `src/components` never imports `src/server/**`
+- [ ] shadcn/ui: added per component when a later phase needs one (dialog, sheet, combobox), restyled to tokens — not installed speculatively
 - [ ] Focus rings, ≥ 4.5:1 contrast both themes, reduced motion
 - [ ] Responsive at 360 / 768 / 1280 / 2560
+- [ ] Development-only components gallery, both themes, axe-checked
+- [ ] `[?]` Curved-grid spike (OGL): endless wrap, visible-only textures, mouse + touch inertia, flat fallback; measure bundle, FPS desktop + mid-range phone; verify Blob CORS for textures
+- [ ] Docs: PRD §2, SRS §6.1 (`/` landing, `/companies` grid), ADR-022
 
-**EXIT:** components gallery in both themes · axe clean.
+**EXIT:** components gallery in both themes · axe clean · curved-grid spike measured.
 
-## Phase 14 · App shell & explore grid  *(FR-101)*
+## Phase 14 · App shell, landing & explore grid  *(FR-101)*
 
 - [ ] Public layout: header, footer, skip link, theme toggle — **no cookie or header reads**
-- [ ] `/` via `src/server/cache` reads
+- [ ] `/` immersive landing: cached read of the up to 300 most recent published `StartupCard`s in `src/server/cache/startups.ts`, registered in the authz suite
+- [ ] `/companies` explore grid via `src/server/cache` reads
 - [ ] Facets and sort as URL params; mobile filter sheet
 - [ ] Load more via `GET /api/v1/startups` with signed cursor; depth-limit message
 - [ ] **Card links: hover prefetch, not viewport prefetch** **(NFR-11)**
