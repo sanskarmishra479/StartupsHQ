@@ -13,7 +13,7 @@
 
 | Aspect | Rule |
 |---|---|
-| Origins | **Reads:** `https://startupshq.com/api/v1`. **Writes, auth, admin reads:** `https://admin.startupshq.com/api/v1`. Write paths on the public origin return `404` (ADR-014). Domain TBD. Host routing (`src/proxy.ts`): on any host other than the admin origin — including preview hostnames — `/admin/*`, `/api/auth/*` and every non-`GET`/`HEAD` `/api/v1/*` return `404` (JSON for `/api/*`). The admin origin serves only `/admin/*`, `/api/auth/*` and `/api/v1/*`: `/` redirects to `/admin`, `/admin/*` without a session cookie redirects to `/admin/login`, anything else is `404`, and every response carries `X-Robots-Tag: noindex, nofollow`. |
+| Origins | **Reads:** `https://startupshq.space/api/v1`. **Writes, auth, admin reads:** `https://admin.startupshq.space/api/v1`. Write paths on the public origin return `404` (ADR-014). Host routing (`src/proxy.ts`): on any host other than the admin origin — including preview hostnames — `/admin/*`, `/api/auth/*` and every non-`GET`/`HEAD` `/api/v1/*` return `404` (JSON for `/api/*`). The admin origin serves only `/admin/*`, `/api/auth/*` and `/api/v1/*`: `/` redirects to `/admin`, `/admin/*` without a session cookie redirects to `/admin/login`, anything else is `404`, and every response carries `X-Robots-Tag: noindex, nofollow`. |
 | Transport | HTTPS only. JSON bodies; `POST /media` and `POST /import/dry-run` are `multipart/form-data`. |
 | Casing | **JSON `camelCase`; database `snake_case`.** DTO mappers are the only translation point. |
 | Money | Integer **whole US dollars** (`30000000` = $30M), never float or formatted string. Non-USD rounds also carry `currency`, `amountOriginal`, `fxRate`, `fxRateDate`. Formatting is the client's job. |

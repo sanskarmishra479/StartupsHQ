@@ -20,8 +20,8 @@ This document is the authority on **requirements**: schema, authorization semant
 | **PublicReadContext** | The cache-safe, identity-free context accepted by cached public reads (§5.2) |
 | **DTO** | The shaped object a service returns; never a raw DB row |
 | **Facet** | A filterable dimension: industry, stage, work type, city, country |
-| **Public origin** | `https://startupshq.com` (domain TBD) — public site and read API |
-| **Admin origin** | `https://admin.startupshq.com` — admin UI and all write API |
+| **Public origin** | `https://startupshq.space` — public site and read API |
+| **Admin origin** | `https://admin.startupshq.space` — admin UI and all write API |
 
 ## 2. Technology
 
@@ -54,8 +54,8 @@ This document is the authority on **requirements**: schema, authorization semant
 
 ```
 ┌─ BROWSER ───────────────────────────────────────────────────────────┐
-│  startupshq.com: cached HTML · fetch /api/v1 (reads, no credentials) │
-│  admin.startupshq.com: admin UI · fetch /api/v1 (writes, cookie)     │
+│  startupshq.space: cached HTML · fetch /api/v1 (reads, no credentials) │
+│  admin.startupshq.space: admin UI · fetch /api/v1 (writes, cookie)     │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │ HTTPS
                      ┌──────────▼──────────┐

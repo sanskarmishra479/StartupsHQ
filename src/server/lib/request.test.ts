@@ -7,7 +7,7 @@ import {
   isJsonContentType,
 } from "./origin";
 
-const ADMIN = "https://admin.startupshq.com";
+const ADMIN = "https://admin.startupshq.space";
 
 describe("clientIp (SEC-14)", () => {
   const spoofed = new Headers({
@@ -47,10 +47,14 @@ describe("mutation origin checks (SEC-04)", () => {
       { origin: ADMIN },
       true,
     ],
-    ["the public origin", { origin: "https://startupshq.com" }, false],
+    ["the public origin", { origin: "https://startupshq.space" }, false],
     ["a foreign origin", { origin: "https://evil.example" }, false],
     ["an opaque origin", { origin: "null" }, false],
-    ["http instead of https", { origin: "http://admin.startupshq.com" }, false],
+    [
+      "http instead of https",
+      { origin: "http://admin.startupshq.space" },
+      false,
+    ],
     [
       "no Origin but same-origin fetch metadata",
       { "sec-fetch-site": "same-origin" },

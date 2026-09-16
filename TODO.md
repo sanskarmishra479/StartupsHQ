@@ -385,7 +385,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 - [ ] Call `attachDatabasePool(pool)` from `@vercel/functions` in `db/client.ts` so Fluid compute drains idle Neon connections before a function suspends
 - [ ] **Verify cache persistence on Vercel (NFR-02, ADR-013):** Next.js documents that the default in-memory `'use cache'` store usually does not persist across serverless instances. Against a preview deploy, request one company page from two clients and count DB queries. If entries are not shared, decide between relying on prerendered/ISR page output and `'use cache: remote'` (platform cache, extra cost) — a decision for the owner, with numbers
 - [ ] **Budget alerts** at 50 / 80 / 100% on Vercel, Neon, Upstash
-- [ ] DNS: public domain + `admin.` subdomain; TLS on both
+- [ ] DNS: `startupshq.space` (bought 2026-09-16) + `admin.startupshq.space`; TLS on both
 - [ ] Vercel env vars per SRS §9, **production secrets scoped to Production only**; migrator credential **not** in Vercel
 - [ ] Neon: per-environment LOGIN users granted the migration-created group roles (`startupshq_app`, `startupshq_retention`, `startupshq_backup`), plus the migrator; pooler; scale-to-zero kept on
 - [ ] Previews: Neon branch from the seed-data branch; **Vercel Authentication** on

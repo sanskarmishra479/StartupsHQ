@@ -1,6 +1,6 @@
 # startupsHQ — Architecture
 
-**Status:** Draft v2 · **Last updated:** 2026-09-14 · Companion to [PRD.md](./PRD.md) and [SRS.md](./SRS.md)
+**Status:** Draft v2 · **Last updated:** 2026-09-16 · Companion to [PRD.md](./PRD.md) and [SRS.md](./SRS.md)
 
 PRD says *what* and *why*. SRS says *what exactly*. This document says **how the system is put together and why** — including the alternatives we rejected, so a future change is a conscious revision rather than an accident.
 
@@ -14,7 +14,7 @@ PRD says *what* and *why*. SRS says *what exactly*. This document says **how the
    ┌────────────┐     ┌────────────┐     ┌────────────┐
    │  Visitor   │     │   Editor   │     │ Googlebot  │
    └─────┬──────┘     └─────┬──────┘     └─────┬──────┘
-         │ startupshq.com   │ admin.startupshq.com
+         │ startupshq.space │ admin.startupshq.space
          └────────┬─────────┴──────────────────┘
                   ▼
         ┌───────────────────────┐
@@ -55,8 +55,8 @@ PRD says *what* and *why*. SRS says *what exactly*. This document says **how the
 
 | Origin | Serves | Credentials |
 |---|---|---|
-| `startupshq.com` | Public pages, read API, sitemap | **None are ever valid here** |
-| `admin.startupshq.com` | Admin UI, write API, auth routes | Host-only session cookie + mandatory 2FA |
+| `startupshq.space` | Public pages, read API, sitemap | **None are ever valid here** |
+| `admin.startupshq.space` | Admin UI, write API, auth routes | Host-only session cookie + mandatory 2FA |
 
 `proxy.ts` routes by host: `/admin/*`, `/api/auth/*` and every non-GET `/api/v1/*` return 404 on the public host. Because no session is valid on the public origin, a script injected into a public page has nothing to steal and no session to ride.
 
@@ -86,7 +86,7 @@ PRD says *what* and *why*. SRS says *what exactly*. This document says **how the
 ### 3.1 Public page — cached (ADR-013)
 
 ```
-GET startupshq.com/companies/highstock
+GET startupshq.space/companies/highstock
   │
   ├─ WAF ................................ allowed
   ├─ proxy.ts ........................... public host, not /admin → pass
@@ -109,7 +109,7 @@ GET startupshq.com/companies/highstock
 ### 3.2 Client-side fetch — filters, load-more, ⌘K
 
 ```
-Browser ── GET startupshq.com/api/v1/startups?stage=seed&cursor=… 
+Browser ── GET startupshq.space/api/v1/startups?stage=seed&cursor=… 
    ├─ WAF: IP + JA4 rate rule, bot challenge on list endpoints ── 429 here costs no function
    └─ route handler
         ├─ Zod parse; verify cursor HMAC and that it matches ?sort
@@ -123,7 +123,7 @@ Search and suggest follow the same path and are **not** cached per query — cac
 ### 3.3 Admin mutation — three authorization layers
 
 ```
-POST admin.startupshq.com/api/v1/startups
+POST admin.startupshq.space/api/v1/startups
   ├─ proxy.ts ........................... layer 1: admin host + session present
   ├─ handler wrapper
   │    ├─ Origin == ADMIN_ORIGIN (or Sec-Fetch-Site: same-origin) — else 403 (CSRF)
@@ -352,7 +352,7 @@ Each ADR is immutable once accepted. To change a decision, add a new ADR that su
 **Status:** Accepted · 2026-09-14
 
 **Context.** A nonce-based CSP forces dynamic rendering of every page, disabling ISR and CDN caching and raising cost. But a weak public CSP matters if editor sessions are valid on the same origin as public pages.
-**Decision.** Admin UI, auth and all writes live on `admin.startupshq.com` with a host-only session cookie. The admin origin uses a strict nonce CSP (it is dynamic anyway). The public origin uses hash-based CSP via Next.js `experimental.sri`; if unworkable, a CSP without script nonces that still enforces `object-src`, `base-uri`, `form-action`, `frame-ancestors` and image origins. CSRF is enforced by origin checks on every non-GET.
+**Decision.** Admin UI, auth and all writes live on `admin.startupshq.space` with a host-only session cookie. The admin origin uses a strict nonce CSP (it is dynamic anyway). The public origin uses hash-based CSP via Next.js `experimental.sri`; if unworkable, a CSP without script nonces that still enforces `object-src`, `base-uri`, `form-action`, `frame-ancestors` and image origins. CSRF is enforced by origin checks on every non-GET.
 **Consequences.** (+) Public pages stay static and cheap; an XSS on the public origin finds no valid credential. (−) Two hostnames in DNS, local dev and tests; SRI is experimental.
 **Revisit if:** Next.js ships stable hash-based CSP, or nonces stop forcing dynamic rendering.
 
