@@ -9,12 +9,18 @@ import type { GridRenderer } from "./grid-renderer";
 
 type CurvedGridProps = Readonly<{
   cards: readonly StartupCard[];
+  /** "flat" keeps the plain grid even where the canvas could run: the viewer's list view. */
+  view?: "curved" | "flat";
+  /** Reports whether the canvas is showing, so controls that need it can hide. */
+  onModeChange?: (mode: Mode) => void;
+  /** Extra classes for the flat grid, e.g. room for floating chrome. */
+  listClassName?: string;
   /** Development only: receives the time each frame took to draw, in milliseconds. */
   onFrame?: (milliseconds: number) => void;
   className?: string;
 }>;
 
-type Mode = "flat" | "canvas";
+export type Mode = "flat" | "canvas";
 
 /**
  * The landing's grid (ADR-023). The cards are always real links in the HTML, for search engines,
@@ -23,17 +29,30 @@ type Mode = "flat" | "canvas";
  * visually hidden, and focusing one glides the canvas to its card. With reduced motion, without
  * WebGL, or if the context is lost, the links are simply shown as a flat grid.
  */
-export function CurvedGrid({ cards, onFrame, className }: CurvedGridProps) {
+export function CurvedGrid({
+  cards,
+  view = "curved",
+  onModeChange,
+  listClassName,
+  onFrame,
+  className,
+}: CurvedGridProps) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<GridRenderer | null>(null);
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
   const [mode, setMode] = useState<Mode>("flat");
+  const onModeChangeRef = useRef(onModeChange);
+  onModeChangeRef.current = onModeChange;
+
+  useEffect(() => {
+    onModeChangeRef.current?.(mode);
+  }, [mode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || view === "flat") return;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let disposed = false;
 
@@ -77,8 +96,9 @@ export function CurvedGrid({ cards, onFrame, className }: CurvedGridProps) {
       reducedMotion.removeEventListener("change", onMotionChange);
       rendererRef.current?.dispose();
       rendererRef.current = null;
+      setMode("flat");
     };
-  }, [cards, router]);
+  }, [cards, router, view]);
 
   const canvasMode = mode === "canvas";
 
@@ -105,7 +125,10 @@ export function CurvedGrid({ cards, onFrame, className }: CurvedGridProps) {
         className={cx(
           canvasMode
             ? "sr-only"
-            : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+            : cx(
+                "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+                listClassName,
+              ),
         )}
         onFocus={(event) => {
           const item = (event.target as HTMLElement).closest("[data-index]");
@@ -126,6 +149,7 @@ export function CurvedGrid({ cards, onFrame, className }: CurvedGridProps) {
               card={card}
               sizes="(min-width: 1536px) 17vw, (min-width: 1280px) 20vw, (min-width: 1024px) 25vw, (min-width: 768px) 33vw, 50vw"
               priority={index < 4}
+              headingLevel={2}
               className="w-full"
             />
           </li>

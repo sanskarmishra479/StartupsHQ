@@ -51,3 +51,34 @@ export type StartupCard = Readonly<{
   totalRaisedUsd: number | null;
   acquiredBy: Readonly<{ name: string; slug: string | null }> | null;
 }>;
+
+/** docs/API.md §1: every paginated list. */
+export type Pagination = Readonly<{
+  nextCursor: string | null;
+  hasMore: boolean;
+  limit: number;
+}>;
+
+export type Page<T> = Readonly<{ data: T[]; pagination: Pagination }>;
+
+/** docs/API.md §6.10a. */
+export type CategoryKind =
+  | "industries"
+  | "stages"
+  | "work-type"
+  | "cities"
+  | "countries";
+
+export type CategoryEntry = Readonly<{
+  slug: string;
+  name: string;
+  companyCount: number;
+  isIndexable: boolean;
+  /** Countries only: the ISO 3166-1 alpha-2 code `GET /startups?country=` takes. */
+  countryCode?: string;
+}>;
+
+export type CategoryDirectory = readonly Readonly<{
+  kind: CategoryKind;
+  entries: readonly CategoryEntry[];
+}>[];

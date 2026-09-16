@@ -1,5 +1,11 @@
 import { describe, expectTypeOf, it } from "vitest";
 import type * as Client from "../../types/public";
+import type { Page, Pagination } from "../lib/pagination";
+import type {
+  CategoryDirectory,
+  CategoryEntry,
+  CategoryKind,
+} from "./category";
 import type { Image } from "./image";
 import type {
   LocationSummary,
@@ -20,5 +26,12 @@ describe("src/types/public.ts", () => {
     expectTypeOf<Client.Image>().toEqualTypeOf<Image>();
     expectTypeOf<Client.LocationSummary>().toEqualTypeOf<LocationSummary>();
     expectTypeOf<Client.StartupCard>().toEqualTypeOf<StartupCard>();
+    expectTypeOf<Client.Pagination>().toEqualTypeOf<Pagination>();
+    expectTypeOf<Client.Page<Client.StartupCard>>().toEqualTypeOf<
+      Page<StartupCard>
+    >();
+    expectTypeOf<Client.CategoryKind>().toEqualTypeOf<CategoryKind>();
+    expectTypeOf<Client.CategoryEntry>().toEqualTypeOf<CategoryEntry>();
+    expectTypeOf<Client.CategoryDirectory>().toEqualTypeOf<CategoryDirectory>();
   });
 });

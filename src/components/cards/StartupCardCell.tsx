@@ -6,6 +6,7 @@ type StartupCardCellProps = Readonly<{
   card: StartupCard;
   sizes: string;
   priority?: boolean;
+  headingLevel?: 2 | 3 | 4;
   className?: string;
 }>;
 

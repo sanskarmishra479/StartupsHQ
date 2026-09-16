@@ -19,6 +19,8 @@ export type EntityCardProps = Readonly<{
   sizes: string;
   /** Only for cards painted above the fold on first load. */
   priority?: boolean;
+  /** The name's heading level: one below the heading of the section the grid sits in. */
+  headingLevel?: 2 | 3 | 4;
   className?: string;
 }>;
 
@@ -36,8 +38,10 @@ export function EntityCard({
   corner,
   sizes,
   priority = false,
+  headingLevel = 3,
   className,
 }: EntityCardProps) {
+  const Heading = `h${headingLevel}` as const;
   return (
     <HoverPrefetchLink
       href={href}
@@ -65,11 +69,11 @@ export function EntityCard({
             className="size-5 text-[0.5625rem]"
           />
         )}
-        <h3 className="meta min-w-0 truncate text-right text-fg">
+        <Heading className="meta min-w-0 truncate text-right text-fg">
           {name}
           {/* The link's accessible name is its text run together; these keep the parts apart. */}
           <span className="sr-only">, </span>
-        </h3>
+        </Heading>
       </div>
 
       <div className="relative aspect-(--aspect-cover) w-full overflow-hidden rounded-xs bg-placeholder">

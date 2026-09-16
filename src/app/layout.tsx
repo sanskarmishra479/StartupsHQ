@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StartupsHQ",
+  title: { default: "StartupsHQ", template: "%s · StartupsHQ" },
   description:
     "Startups, founders, investors and accelerator batches — connected.",
 };
