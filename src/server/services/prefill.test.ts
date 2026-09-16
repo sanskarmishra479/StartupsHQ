@@ -1,7 +1,15 @@
 import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import sharp from "sharp";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { closeDb, getDb } from "../db/client";
 import { locations, mediaAssets, startups } from "../db/schema";
 import { seed } from "../db/seed";
@@ -27,7 +35,12 @@ afterAll(async () => {
   await closeDb();
 });
 
+// Prefill is budgeted at 20 an hour per account, so each test gets its own counter; the budget
+// test below sets its own and exercises the limit deliberately.
 const namespace = process.env.RATE_LIMIT_NAMESPACE;
+beforeEach(() => {
+  process.env.RATE_LIMIT_NAMESPACE = `prefill-${randomUUID()}`;
+});
 afterEach(() => {
   process.env.RATE_LIMIT_NAMESPACE = namespace;
 });
@@ -189,6 +202,39 @@ describe("a usable draft from a real page (FR-401)", () => {
   });
 });
 
+describe("the careers link", () => {
+  const draftFor = (body: string) =>
+    prefill(
+      editor,
+      { url: PAGE },
+      { fetch: fetcherFor({ [PAGE]: { body: page({ body }) } }) },
+    );
+
+  it("prefers the company's own page over a parent company's", async () => {
+    // Found on a real site: an acquired company links its parent's careers page too.
+    const draft = await draftFor(`
+      <a href="https://www.databricks.example/company/careers/open-positions">Careers</a>
+      <a href="/careers">Join us</a>`);
+    expect(draft.careersUrl).toBe("https://acme-robotics.example/careers");
+  });
+
+  it("accepts a hiring platform the company uses", async () => {
+    const draft = await draftFor(
+      '<a href="https://boards.greenhouse.io/acmerobotics/jobs">Open roles</a>',
+    );
+    expect(draft.careersUrl).toBe(
+      "https://boards.greenhouse.io/acmerobotics/jobs",
+    );
+  });
+
+  it("takes nothing rather than someone else's careers page", async () => {
+    const draft = await draftFor(
+      '<a href="https://www.databricks.example/company/careers">Careers</a>',
+    );
+    expect(draft.careersUrl).toBeNull();
+  });
+});
+
 describe("hostile URLs are refused (SEC-05)", () => {
   it.each([
     ["loopback", "https://127.0.0.1/"],
@@ -210,14 +256,11 @@ describe("hostile URLs are refused (SEC-05)", () => {
   });
 
   it("refuses a host whose DNS answer is private (rebinding)", async () => {
-    // The resolver answers with a public address first and a private one second; the socket's own
-    // lookup sees both, so nothing is ever connected to.
+    // A rebinding resolver: whatever it claimed earlier, the address the socket would use is
+    // private, so the connection is refused at connect time and nothing is opened.
     const rebinding = (input: string) =>
       safeFetch(input, {
-        resolve: async () => [
-          { address: "93.184.216.34", family: 4 },
-          { address: "127.0.0.1", family: 4 },
-        ],
+        resolve: async () => [{ address: "127.0.0.1", family: 4 }],
       });
     await expect(
       prefill(editor, { url: PAGE }, { fetch: rebinding }),
@@ -325,7 +368,6 @@ describe("degrading gracefully", () => {
 
 describe("the prefill budget (SEC-08)", () => {
   it("allows 20 an hour per editor, then refuses", async () => {
-    process.env.RATE_LIMIT_NAMESPACE = `prefill-${randomUUID()}`;
     const fetch = fetcherFor({ [PAGE]: { body: page({}) } });
 
     for (let attempt = 0; attempt < 20; attempt += 1) {

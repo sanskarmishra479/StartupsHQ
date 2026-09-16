@@ -57,12 +57,20 @@ for (const [network, prefix] of [
   nonPublic.addSubnet(network, prefix, "ipv6");
 }
 
-/** "::ffff:127.0.0.1" or "::ffff:7f00:1" → "127.0.0.1"; anything else → null. */
-function unwrapMappedIpv4(ipv6: string): string | null {
+/**
+ * An IPv4 address carried inside IPv6, so it is judged as the IPv4 it really is. Two forms:
+ * IPv4-mapped (`::ffff:127.0.0.1`, `::ffff:7f00:1`) and the NAT64 well-known prefix
+ * (`64:ff9b::7f00:1`), which resolvers synthesise for IPv4-only hosts — real answers for real
+ * sites arrive this way, so the embedded address decides, not the wrapper. Anything else → null.
+ */
+function unwrapEmbeddedIpv4(ipv6: string): string | null {
   const normalized = new URL(`http://[${ipv6}]`).hostname.slice(1, -1);
-  const dotted = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(normalized);
-  if (dotted?.[1]) return dotted[1];
-  const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(normalized);
+  const prefix = /^(?:::ffff:|64:ff9b::)/;
+  if (!prefix.test(normalized)) return null;
+  const embedded = normalized.replace(prefix, "");
+
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(embedded)) return embedded;
+  const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(embedded);
   if (!hex?.[1] || !hex[2]) return null;
   const high = Number.parseInt(hex[1], 16);
   const low = Number.parseInt(hex[2], 16);
@@ -74,7 +82,7 @@ export function isPublicAddress(address: string): boolean {
   const version = isIP(address);
   if (version === 4) return !nonPublic.check(address, "ipv4");
   if (version === 6) {
-    const mapped = unwrapMappedIpv4(address);
+    const mapped = unwrapEmbeddedIpv4(address);
     if (mapped) return isPublicAddress(mapped);
     return !nonPublic.check(address, "ipv6");
   }
@@ -132,8 +140,14 @@ const systemResolver: Resolver = (hostname) =>
   dnsLookup(hostname, { all: true });
 
 /**
- * A socket lookup that refuses the whole hostname if any resolved address is non-public, and
- * otherwise connects only to the addresses it validated.
+ * A socket lookup that hands the connection only addresses it has validated as public, and
+ * refuses the hostname when none survive.
+ *
+ * Filtering, rather than refusing any answer that contains a non-public address, is what makes
+ * this usable: dual-stack and DNS64 resolvers routinely return a usable address alongside one we
+ * will not touch. Safety does not depend on the answer being uniformly clean — it depends on
+ * never handing a non-public address to the socket, which is exactly what this does, on every
+ * connection, so a rebinding answer still cannot reach a private host.
  */
 export function createSafeLookup(
   resolve: Resolver = systemResolver,
@@ -141,10 +155,10 @@ export function createSafeLookup(
   return (hostname, options, callback) => {
     resolve(hostname).then(
       (addresses) => {
-        if (
-          addresses.length === 0 ||
-          !addresses.every((entry) => isPublicAddress(entry.address))
-        ) {
+        const publicOnly = addresses.filter((entry) =>
+          isPublicAddress(entry.address),
+        );
+        if (publicOnly.length === 0) {
           const error: NodeJS.ErrnoException = new Error(
             "Refusing to connect to a non-public address.",
           );
@@ -156,8 +170,8 @@ export function createSafeLookup(
         const family =
           options.family === 4 || options.family === 6 ? options.family : 0;
         const usable = family
-          ? addresses.filter((entry) => entry.family === family)
-          : [...addresses];
+          ? publicOnly.filter((entry) => entry.family === family)
+          : [...publicOnly];
         const [first] = usable;
         if (!first) {
           const error: NodeJS.ErrnoException = new Error("No usable address.");

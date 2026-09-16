@@ -27,6 +27,12 @@ const HOUR_SECONDS = 3600;
 const MAX_TAGLINE = 120;
 const MAX_DESCRIPTION = 4000;
 
+const CAREERS_PATH = /\/(careers|jobs|join-us|work-with-us)(\/|$|\?)/i;
+
+/** Hiring platforms a company's own careers link legitimately points at. */
+const ATS_HOSTS =
+  /(^|\.)(greenhouse\.io|boards\.greenhouse\.io|lever\.co|ashbyhq\.com|workable\.com|teamtailor\.com|breezy\.hr|smartrecruiters\.com|recruitee\.com|jobvite\.com|myworkdayjobs\.com|pinpointhq\.com)$/i;
+
 export type Confidence = "high" | "medium" | "low";
 
 export type PrefillAsset = Readonly<{
@@ -257,16 +263,29 @@ function extract(html: string, pageUrl: string): Extracted {
   const nameConfidence: Confidence =
     jsonLdName || siteName ? "high" : ogTitle ? "medium" : "low";
 
-  const anchorHref = (test: RegExp) => {
-    let found: string | null = null;
-    $("a[href]").each((_, element) => {
-      if (found) return;
-      const href = $(element).attr("href") ?? "";
-      const resolved = absoluteHttps(href, pageUrl);
-      if (resolved && test.test(resolved)) found = resolved;
-    });
-    return found;
+  const hrefs: string[] = [];
+  $("a[href]").each((_, element) => {
+    const resolved = absoluteHttps($(element).attr("href") ?? "", pageUrl);
+    if (resolved) hrefs.push(resolved);
+  });
+  const anchorHref = (test: RegExp) =>
+    hrefs.find((href) => test.test(href)) ?? null;
+
+  const hostOf = (href: string) => {
+    try {
+      return new URL(href).host.toLowerCase();
+    } catch {
+      return "";
+    }
   };
+  const pageHost = hostOf(pageUrl);
+  const careersCandidates = hrefs.filter((href) => CAREERS_PATH.test(href));
+  // The company's own page first, then a hiring platform it uses. Never a third party's careers
+  // page: an acquired company often links its parent's, which is not this company's hiring page.
+  const careersUrl =
+    careersCandidates.find((href) => hostOf(href) === pageHost) ??
+    careersCandidates.find((href) => ATS_HOSTS.test(hostOf(href))) ??
+    null;
 
   const iconHref =
     $('link[rel~="apple-touch-icon"]').attr("href") ??
@@ -289,7 +308,7 @@ function extract(html: string, pageUrl: string): Extracted {
       absoluteHttps(imageFrom(organization?.logo), pageUrl) ??
       absoluteHttps(iconHref, pageUrl),
     coverUrl: absoluteHttps(og("image"), pageUrl),
-    careersUrl: anchorHref(/\/(careers|jobs|join-us|work-with-us)(\/|$|\?)/i),
+    careersUrl,
     links: {
       linkedin: anchorHref(/^https:\/\/([a-z]+\.)?linkedin\.com\//i),
       x: anchorHref(/^https:\/\/([a-z]+\.)?(x|twitter)\.com\//i),

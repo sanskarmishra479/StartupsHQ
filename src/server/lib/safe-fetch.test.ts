@@ -73,6 +73,8 @@ describe("isPublicAddress", () => {
     "93.184.216.34",
     "2606:4700:4700::1111",
     "::ffff:8.8.8.8",
+    // NAT64 of a public IPv4 (76.76.21.22): judged by what it embeds, so it is allowed.
+    "64:ff9b::4c4c:1516",
   ])("treats %s as public", (address) => {
     expect(isPublicAddress(address)).toBe(true);
   });
@@ -160,13 +162,15 @@ describe("createSafeLookup (connect-time validation)", () => {
     });
   });
 
-  it("refuses the whole hostname if any answer is private", async () => {
+  it("hands over only the public addresses of a mixed answer", async () => {
+    // Dual-stack and DNS64 resolvers mix these routinely; the private one is simply dropped.
     const lookup = createSafeLookup(
       resolverReturning("93.184.216.34", "127.0.0.1"),
     );
-    await expect(runLookup(lookup, { all: true })).rejects.toMatchObject({
-      code: "EUNSAFEADDRESS",
-    });
+    expect(await runLookup(lookup, { all: true })).toEqual([
+      { address: "93.184.216.34", family: 4 },
+    ]);
+    expect(await runLookup(lookup)).toBe("93.184.216.34");
   });
 
   it("defeats DNS rebinding: every connection re-validates the fresh answer", async () => {
