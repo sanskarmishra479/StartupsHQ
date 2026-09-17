@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_THEME,
   isTheme,
   THEME_INIT_SCRIPT,
+  THEME_INIT_SCRIPT_HASH,
   THEME_STORAGE_KEY,
   THEMES,
 } from "./theme";
@@ -46,5 +48,14 @@ describe("THEME_INIT_SCRIPT", () => {
 
   it("survives storage that throws, as in some private windows", () => {
     expect(applied(new Error("SecurityError"))).toBeNull();
+  });
+});
+
+describe("THEME_INIT_SCRIPT_HASH", () => {
+  it("is the CSP hash of the script exactly as the layout inlines it", () => {
+    const digest = createHash("sha256")
+      .update(THEME_INIT_SCRIPT)
+      .digest("base64");
+    expect(THEME_INIT_SCRIPT_HASH).toBe(`'sha256-${digest}'`);
   });
 });

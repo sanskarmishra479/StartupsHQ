@@ -18,6 +18,7 @@ import {
 } from "../testing/authz";
 import { fixtureId, startups as startupsTable } from "../testing/fixtures";
 import { ensureTestUsers } from "../testing/users";
+import * as adminPanel from "./admin-panel";
 import * as adminReads from "./admin-reads";
 import * as batchWrites from "./batch-writes";
 import * as batches from "./batches";
@@ -415,6 +416,34 @@ const REGISTRY: AuthzRegistry = {
         await fixtureId(startupsTable, "stealth-draft-co"),
       ),
     seesDraft: (result) => (result as { status?: string }).status === "draft",
+  },
+  // The admin panel's own reads (FR-202, FR-204, FR-205, FR-207). Lookups, media and category
+  // copy have no draft state of their own; they are editor-only because nothing public needs them.
+  "services/admin-panel.ts#getDashboard": {
+    kind: "editor-read",
+    invoke: (ctx) => adminPanel.getDashboard(ctx),
+    seesDraft: (result) =>
+      (result as adminPanel.Dashboard).drafts.some(
+        (item) => item.slug === "stealth-draft-co",
+      ),
+  },
+  "services/admin-panel.ts#getLookups": {
+    kind: "editor-read",
+    invoke: (ctx) => adminPanel.getLookups(ctx),
+    seesDraft: (result) =>
+      (result as adminPanel.Lookups).industries.some(
+        (industry) => industry.slug === "quantum",
+      ),
+  },
+  "services/admin-panel.ts#listMedia": {
+    kind: "editor-read",
+    invoke: (ctx) => adminPanel.listMedia(ctx),
+    seesDraft: (result) => Array.isArray(result),
+  },
+  "services/admin-panel.ts#listCategoryCopy": {
+    kind: "editor-read",
+    invoke: (ctx) => adminPanel.listCategoryCopy(ctx),
+    seesDraft: (result) => typeof result === "object" && result !== null,
   },
   // CSV import (FR-402). A one-row file: authorized callers get a dry run, nobody else does.
   "services/import.ts#dryRun": {

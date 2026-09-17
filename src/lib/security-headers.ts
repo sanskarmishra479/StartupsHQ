@@ -11,6 +11,8 @@
 // Both refuse objects, framing, foreign form targets and `<base>` rewriting, which is what stops
 // the injection routes a directory site actually faces.
 
+import { THEME_INIT_SCRIPT_HASH } from "./theme";
+
 export type CspAudience = Readonly<{
   adminHost: boolean;
   /** Required for the admin origin; ignored on the public one. */
@@ -34,6 +36,8 @@ export function contentSecurityPolicy(audience: CspAudience): string {
     ? [
         "'self'",
         audience.nonce ? `'nonce-${audience.nonce}'` : "",
+        // The root layout's theme script, the one inline script not rendered per request.
+        THEME_INIT_SCRIPT_HASH,
         "'strict-dynamic'",
         audience.development ? "'unsafe-eval'" : "",
       ]

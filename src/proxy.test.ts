@@ -86,7 +86,10 @@ describe("admin host", () => {
     ["POST", "/api/auth/sign-in/email", false, adminPage],
     ["POST", "/api/v1/startups", false, adminPage],
     ["GET", "/_next/data/build/admin.json", false, adminPage],
+    ["GET", "/icon.svg", false, adminPage],
+    ["GET", "/apple-icon.png", false, adminPage],
     ["GET", "/companies/kiln-analytics", false, notFound(false)],
+    ["GET", "/robots.txt", false, notFound(false)],
     ["GET", "/api/other", false, notFound(true)],
   ])("%s %s (session cookie: %s)", (method, pathname, cookie, expected) => {
     expect(decide(ADMIN, method, pathname, cookie)).toEqual(expected);
@@ -217,8 +220,13 @@ describe("proxy", () => {
     );
     const policy = admin.headers.get("content-security-policy") ?? "";
     expect(policy).toMatch(
-      /script-src 'self' 'nonce-[0-9a-f]{32}' 'strict-dynamic'/,
+      /script-src 'self' 'nonce-[0-9a-f]{32}' 'sha256-[A-Za-z0-9+/=]+' 'strict-dynamic'/,
     );
+    // The same policy is forwarded on the request, where Next.js looks for the nonce to stamp its
+    // own scripts; without it nothing on the admin origin hydrates (Phase 18).
+    expect(
+      admin.headers.get("x-middleware-request-content-security-policy"),
+    ).toBe(policy);
 
     const second = proxy(
       request(`${ADMIN_ORIGIN}/admin/startups`, {

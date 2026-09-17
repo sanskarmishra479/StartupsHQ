@@ -18,6 +18,13 @@ export type RoutingDecision =
 
 const READ_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);
 
+/** The site icons (Next.js metadata files), served on both hosts so the admin tab has one too. */
+const ICON_PATHS: ReadonlySet<string> = new Set([
+  "/favicon.ico",
+  "/icon.svg",
+  "/apple-icon.png",
+]);
+
 /** Admin pages a visitor without a session must still reach. */
 const OPEN_ADMIN_PATHS: ReadonlySet<string> = new Set([
   "/admin/login",
@@ -82,7 +89,8 @@ export function routeRequest(
   if (
     under(path, "/api/auth") ||
     under(path, "/api/v1") ||
-    under(path, "/_next")
+    under(path, "/_next") ||
+    ICON_PATHS.has(path)
   ) {
     return { kind: "continue", adminHost: true };
   }

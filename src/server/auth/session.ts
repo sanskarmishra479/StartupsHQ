@@ -16,6 +16,9 @@ import { type AdminContext, assertAdmin } from "./guards";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
+/** Who is signed in, for the admin panel's own display. Never used for an access decision. */
+export type SessionUser = Readonly<{ email: string; name: string }>;
+
 export type SessionStatus =
   | Readonly<{ kind: "anonymous"; ctx: PublicContext }>
   /** Signed in with a password, but has not enrolled TOTP yet: may only enrol. */
@@ -23,8 +26,9 @@ export type SessionStatus =
       kind: "enrollment-required";
       ctx: PublicContext;
       userId: string;
+      user: SessionUser;
     }>
-  | Readonly<{ kind: "authed"; ctx: AuthedContext }>;
+  | Readonly<{ kind: "authed"; ctx: AuthedContext; user: SessionUser }>;
 
 export async function getSessionStatus(
   headers: Headers,
@@ -44,19 +48,28 @@ export async function getSessionStatus(
   }
   if (!session) return anonymous;
 
-  const { id, role, twoFactorEnabled, deactivatedAt } = session.user as {
-    id: string;
-    role?: unknown;
-    twoFactorEnabled?: unknown;
-    deactivatedAt?: unknown;
-  };
+  const { id, email, name, role, twoFactorEnabled, deactivatedAt } =
+    session.user as {
+      id: string;
+      email: string;
+      name: string;
+      role?: unknown;
+      twoFactorEnabled?: unknown;
+      deactivatedAt?: unknown;
+    };
   // Deactivated accounts keep no access even if a session row somehow survived (FR-208).
   if (deactivatedAt) return anonymous;
   if (role !== "admin" && role !== "editor") return anonymous;
+  const user = { email, name };
   if (twoFactorEnabled !== true) {
-    return { kind: "enrollment-required", ctx: publicContext(ip), userId: id };
+    return {
+      kind: "enrollment-required",
+      ctx: publicContext(ip),
+      userId: id,
+      user,
+    };
   }
-  return { kind: "authed", ctx: authedContext({ id, role }, ip) };
+  return { kind: "authed", ctx: authedContext({ id, role }, ip), user };
 }
 
 export async function getSessionContext(

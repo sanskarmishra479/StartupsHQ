@@ -24,3 +24,12 @@ export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem(${J
   .join(
     "||",
   )})document.documentElement.setAttribute("data-theme",t)}catch(e){}})()`;
+
+/**
+ * The script's SHA-256 as a CSP source. The admin origin's policy allows inline scripts only by
+ * nonce or by this hash, so the theme applies before paint there too without reading the nonce in
+ * the shared root layout, which would make every public page dynamic (SEC-09, ADR-022).
+ * theme.test.ts recomputes it, so editing the script without updating this fails the tests.
+ */
+export const THEME_INIT_SCRIPT_HASH =
+  "'sha256-K22ykbNzOuHzdq7T0uCZ8M+BhcHou87o+zyUbnYcNhU='";

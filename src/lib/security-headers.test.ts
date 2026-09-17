@@ -4,6 +4,7 @@ import {
   STRICT_TRANSPORT_SECURITY,
   securityHeaders,
 } from "./security-headers";
+import { THEME_INIT_SCRIPT_HASH } from "./theme";
 
 // SEC-09 and SEC-19. The two origins differ only in how scripts are allowed; everything that
 // stops injection, framing and form hijacking is identical on both.
@@ -24,7 +25,7 @@ describe("the content security policy", () => {
 
   it("gives the admin origin a nonce and strict-dynamic", () => {
     expect(admin.get("script-src")).toBe(
-      "'self' 'nonce-abc123' 'strict-dynamic'",
+      `'self' 'nonce-abc123' ${THEME_INIT_SCRIPT_HASH} 'strict-dynamic'`,
     );
   });
 

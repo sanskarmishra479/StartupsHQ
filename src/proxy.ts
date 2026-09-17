@@ -51,9 +51,14 @@ export function proxy(request: NextRequest): NextResponse {
             });
       default: {
         if (nonce === undefined) return NextResponse.next();
-        // Pages read the nonce from this header to stamp their own script tags.
+        // Next.js reads the nonce from the policy on the *request* to stamp the scripts it renders;
+        // x-nonce is for any script a page adds itself.
         const forwarded = new Headers(request.headers);
         forwarded.set("x-nonce", nonce);
+        forwarded.set(
+          "content-security-policy",
+          headers["Content-Security-Policy"] ?? "",
+        );
         return NextResponse.next({ request: { headers: forwarded } });
       }
     }
