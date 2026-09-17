@@ -264,3 +264,19 @@ export type Batch = Readonly<{
 
 /** docs/API.md §7.7. */
 export type NewsItem = Readonly<{ round: Round; startup: StartupCard }>;
+
+/** docs/API.md §7.8. */
+export type CategoryPage = Readonly<{
+  kind: CategoryKind;
+  slug: string;
+  heading: string;
+  intro: string | null;
+  iconUrl: string | null;
+  seoTitle: string;
+  seoDescription: string;
+  isGenerated: boolean;
+  isIndexable: boolean;
+  companyCount: number;
+  companies: readonly StartupCard[];
+  pagination: Pagination;
+}>;

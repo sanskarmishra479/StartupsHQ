@@ -13,10 +13,13 @@ export function PagedCardGrid({
   initialPage,
   endpoint,
   label,
+  disableMore = false,
 }: Readonly<{
   initialPage: Page<StartupCard>;
   endpoint: string;
   label: string;
+  /** When later pages cannot be requested, show the first page only. */
+  disableMore?: boolean;
 }>) {
   const { items, hasMore, depthLimited, status, loadMore } = usePagedList(
     initialPage,
@@ -36,6 +39,7 @@ export function PagedCardGrid({
           </PillButton>
         </div>
       ) : (
+        !disableMore &&
         (hasMore || depthLimited) && (
           <LoadMore
             shown={items.length}

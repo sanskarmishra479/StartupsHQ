@@ -35,6 +35,8 @@ test("every entity link reachable from a company page resolves", async ({
   page,
   request,
 }) => {
+  // Dozens of pages, each rendered on first request by a fresh production server.
+  test.setTimeout(180_000);
   const queue = ["/companies/kiln-analytics"];
   const seen = new Set(queue);
   while (queue.length > 0) {

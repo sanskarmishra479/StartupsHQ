@@ -6,6 +6,7 @@ import type {
   CategoryDirectory,
   CategoryEntry,
   CategoryKind,
+  CategoryPage,
 } from "./category";
 import type { Founder } from "./founder";
 import type { Image } from "./image";
@@ -49,6 +50,7 @@ describe("src/types/public.ts", () => {
     expectTypeOf<Client.BatchStats>().toEqualTypeOf<BatchStats>();
     expectTypeOf<Client.Batch>().toEqualTypeOf<Batch>();
     expectTypeOf<Client.NewsItem>().toEqualTypeOf<NewsItem>();
+    expectTypeOf<Client.CategoryPage>().toEqualTypeOf<CategoryPage>();
     expectTypeOf<Client.Page<Client.StartupCard>>().toEqualTypeOf<
       Page<StartupCard>
     >();
