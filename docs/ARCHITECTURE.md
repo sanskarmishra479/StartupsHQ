@@ -1,6 +1,6 @@
 # startupsHQ — Architecture
 
-**Status:** Draft v2 · **Last updated:** 2026-09-16 · Companion to [PRD.md](./PRD.md) and [SRS.md](./SRS.md)
+**Status:** Draft v2 · **Last updated:** 2026-09-17 · Companion to [PRD.md](./PRD.md) and [SRS.md](./SRS.md)
 
 PRD says *what* and *why*. SRS says *what exactly*. This document says **how the system is put together and why** — including the alternatives we rejected, so a future change is a conscious revision rather than an accident.
 
@@ -371,7 +371,7 @@ Each ADR is immutable once accepted. To change a decision, add a new ADR that su
 **Revisit if:** Next.js changes `'use cache'` key derivation or invalidation semantics.
 
 ### ADR-014 — Separate admin origin; nonce CSP on admin, hash-based CSP on public
-**Status:** Accepted · 2026-09-14 · *Amended by ADR-022: the public origin runs the fallback policy*
+**Status:** Accepted · 2026-09-14 · *Amended by ADR-022: the public origin runs the fallback policy; ADR-024: how the admin nonce reaches Next.js*
 
 **Context.** A nonce-based CSP forces dynamic rendering of every page, disabling ISR and CDN caching and raising cost. But a weak public CSP matters if editor sessions are valid on the same origin as public pages.
 **Decision.** Admin UI, auth and all writes live on `admin.startupshq.space` with a host-only session cookie. The admin origin uses a strict nonce CSP (it is dynamic anyway). The public origin uses hash-based CSP via Next.js `experimental.sri`; if unworkable, a CSP without script nonces that still enforces `object-src`, `base-uri`, `form-action`, `frame-ancestors` and image origins. CSRF is enforced by origin checks on every non-GET.
@@ -446,6 +446,15 @@ Each ADR is immutable once accepted. To change a decision, add a new ADR that su
 **Alternatives rejected.** *three.js* — ~9× OGL's download and ~10× its parse cost for effects this needs none of. *CSS 3D transforms per card* — cannot bend a cell's edges, and hundreds of composited layers cost more than one draw call. *Canvas-only landing* — breaks NFR-03 and NFR-04. *Keeping the grid at `/`* — the owner chose the immersive front door.
 **Consequences.** (+) The distinctive first impression ships without giving up SEO, accessibility or static rendering; the spike's lazy chunk is 19.9 kB gzipped. (−) Card anatomy is drawn twice — HTML (`EntityCard`) and canvas (`card-raster.ts`) — and must be kept in step. Covers need CORS on Blob for textures. Text in the canvas is not selectable. Frame rate on mid-range phones must be measured on hardware.
 **Revisit if:** mid-range phones cannot hold a smooth drag, Lighthouse on `/` falls below 95, or analytics show the landing is skipped in favour of `/companies`.
+
+### ADR-024 — Admin nonce stamped from the request policy; theme script allowed by hash
+**Status:** Accepted · 2026-09-17
+
+**Context.** The admin origin's policy is `script-src 'self' 'nonce-…' 'strict-dynamic'` (ADR-014). Next.js stamps its nonce on the scripts it renders only when it can read the policy from the *request* headers; the proxy forwarded `x-nonce` alone, so no admin page would have hydrated. Separately, the root layout, shared by both origins, inlines a theme script before first paint. Giving it the nonce means reading request headers in the root layout, which would make every public page dynamic and give up ADR-013's static public site.
+**Decision.** The proxy forwards the same `Content-Security-Policy` on the request, and admin pages render per request (`connection()` in the admin layout, `instant = false`). The theme script is allowed on the admin origin by its SHA-256 (`THEME_INIT_SCRIPT_HASH`), which a unit test recomputes from the script, so editing one without the other fails CI.
+**Alternatives rejected.** *Separate root layouts per origin* — duplicates the document shell and fonts and forces full page loads between groups, for one script. *Dropping the theme script on the admin origin* — a flash of the wrong theme on every admin load. *`'unsafe-inline'` on the admin origin* — the origin that holds sessions keeps the strict policy.
+**Consequences.** (+) Public pages stay static; the admin origin keeps a strict policy and hydrates. (−) The hash must change with the script (enforced by `theme.test.ts`); any other inline script added to the root layout needs the same treatment.
+**Revisit if:** the root layout gains more inline scripts, or Next.js supports nonces on statically rendered shells.
 
 ---
 

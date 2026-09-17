@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** **backend done (M5)** — Phase 17 (search UI) built — **M6 public site complete**; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS and production suggest p95 at Phase 22 — Phase 18 next · **Last updated:** 2026-09-17
+**Status:** **backend done (M5)** — Phase 18 (admin UI) built — **M6 public site complete, M7 admin built** (pending the owner's hand-timed run); open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS and production suggest p95 at Phase 22 — Phase 19 next · **Last updated:** 2026-09-17
 
 ---
 
@@ -383,22 +383,23 @@ Verified by driving the dev and production servers in Chromium: axe clean on `/`
 
 ## Phase 18 · Admin UI  *(FR-201 … FR-210)* — admin origin only
 
-- [ ] **Hydration under the nonce CSP:** Next.js stamps its nonce only when it can read the policy from the *request* headers; `proxy.ts` forwards `x-nonce` alone today. Verify an admin page hydrates against a production build with no CSP violation, and give the root layout's inline theme script the nonce (found in Phase 13, ADR-022)
-- [ ] Icons and brand files on the admin host: host routing serves only `/admin`, `/api` and `/_next` there, so `/favicon.ico` and `/icon.svg` 404
+- [x] **Hydration under the nonce CSP:** `proxy.ts` now forwards the policy on the *request* (`content-security-policy`) as well as `x-nonce`, so Next.js stamps its scripts; the root layout's theme script is allowed by its SHA-256 (`THEME_INIT_SCRIPT_HASH`, recomputed in `theme.test.ts`) instead of reading the nonce, which would make every public page dynamic (ADR-024). Verified on a production build: sign-in, enrolment and every panel page hydrate with no CSP violation
+- [x] Icons and brand files on the admin host: `/favicon.ico`, `/icon.svg` and `/apple-icon.png` are served there too
 
-- [ ] Login → **2FA enrollment / challenge**; recovery codes UI; password reset
-- [ ] Dashboard: counts, drafts, recent audit, pending imports
-- [ ] Lists with status filter (draft/published/archived), bulk publish, **archive / restore**
-- [ ] Startup form: sections, shared Zod schemas, dirty-state guard, Save-draft vs Publish
-- [ ] Comboboxes with inline draft creation; founder stints with `sourceUrl`
-- [ ] Round rows: currency selector + original amount; server-computed USD shown after save; undisclosed hides amounts; admin manual-FX dialog
-- [ ] Image upload (drag-drop, preview, progress) → staging assets
-- [ ] Prefill: paste URL → per-field accept; warnings for rejected images
-- [ ] Import: upload → dry-run table → commit within 24 h → stale/expired handling → export report
-- [ ] **Admin-only:** slug change dialog, hard delete (never-published only), users (invite, role, reset 2FA, deactivate), **privacy** (requests, founder erasure with typed confirmation)
-- [ ] `/admin/categories`, `/admin/media`
+- [x] Login → **2FA enrollment / challenge**; recovery codes UI; password reset. Sign-in then a TOTP or recovery-code step; first sign-in forces enrolment (setup key and `otpauth:` link, verify, then the 10 codes); reset and invite links land on `/admin/reset-password`; `/admin/account` generates new codes and changes the password (other sessions signed out). No QR code yet — it needs a dependency, left for the owner to decide
+- [x] Dashboard: counts, drafts, recent audit, pending imports (`services/admin-panel.ts#getDashboard`; audit rows without their diffs)
+- [x] Lists with status filter (draft/published/archived), bulk publish, **archive / restore** — one route for all five entities, name search, keyset paging; each bulk item goes through its own endpoint and failures are listed by name
+- [x] Startup form: sections, dirty-state guard, Save-draft vs Publish. **As built, validation is not a shared Zod schema:** the schemas import database enums and live under `src/server` (SEC-01), so the form checks shape and required fields from field specs (`components/admin/editor/fields.ts`) and shows the server's `VALIDATION_ERROR` details on their fields. A new startup is created with all of its links in one `POST /startups`; publishing can also publish the drafts it links to ("Also publish linked drafts", on by default), so inline-created founders, investors, batches and rounds appear on the public page
+- [x] Comboboxes with inline draft creation; founder stints with `sourceUrl`
+- [x] Round rows: currency selector + original amount; server-computed USD shown after save; undisclosed hides amounts; admin manual-FX dialog
+- [x] Image upload (drag-drop, preview, progress) → staging assets
+- [x] Prefill: paste URL → per-field accept; warnings for rejected images (fields already filled start unticked)
+- [x] Import: upload → dry-run table → commit within 24 h → stale/expired handling → export report; a stored dry run reopens from the dashboard (`services/import.ts#getJob`)
+- [x] **Admin-only:** slug change dialog, hard delete (never-published only, typed name), users (invite, role, reset 2FA, deactivate/reactivate), **privacy** (requests, founder erasure with typed confirmation). Admin-only pages are a 404 to editors; the API checks the role again
+- [x] `/admin/categories`, `/admin/media`
+- [x] axe clean and no horizontal scroll at 360 px on every admin page; `e2e/admin-crud.spec.ts` passes against a production build
 
-**EXIT (M7):** company with 2 founders, 3 investors, a batch and a EUR round added end to end in **under 90 seconds**, timed.
+**EXIT (M7):** company with 2 founders, 3 investors, a batch and a EUR round added end to end in **under 90 seconds**, timed. *Met by machine:* `admin-crud.spec.ts` adds and publishes it in 4.0 s and finds it, with `€20M`, on the public page. **Owner check:** time the same task by hand.
 
 ---
 

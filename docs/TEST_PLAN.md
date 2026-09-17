@@ -198,7 +198,7 @@ Admin reads and staff accounts: `src/app/api/v1/admin-endpoints.test.ts` — an 
 | Spec | Scenario | Asserts |
 |---|---|---|
 | `graph.spec.ts` | `/` (landing) → company → founder → *earlier* startup → investor → portfolio → another company → batch → cohort | every hop by click, no dead ends |
-| `admin-crud.spec.ts` | login + TOTP on `admin.localhost` → create startup with 2 founders (1 inline), 3 investors, a batch, a EUR round → publish | appears on `/`, its page, both founder pages, investor page, `/news` with original currency shown |
+| `admin-crud.spec.ts` | login + TOTP on `admin.localhost` → create startup with 2 founders (1 inline), 3 investors, a batch, a EUR round → publish with linked drafts | every link on the saved record; its public page shows the round's original currency; under 90 s. As built (Phase 18): runs only with an enrolled admin given by `E2E_ADMIN_ORIGIN`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD` and `E2E_ADMIN_TOTP_SECRET`, and an ECB EUR rate near `E2E_ROUND_DATE`; the checks on `/`, founder, investor and `/news` pages remain for Phase 21 |
 | `lifecycle.spec.ts` | archive a published company → visit publicly → restore → admin changes slug → visit old URL | 404 while archived; visible after re-publish; old URL 301s to new |
 | `auth.spec.ts` | first login forces 2FA enrollment; recovery code; session revocation; cross-origin form POST from the public origin | enrollment required; code single-use; revoked immediately; POST rejected |
 | `access-control.spec.ts` | anonymous `/admin` on admin host; `/admin` on public host; draft slug publicly; editor on `/admin/users` | redirect to login; 404; 404; 403 |
