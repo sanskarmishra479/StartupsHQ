@@ -1,6 +1,6 @@
 # startupsHQ — Test Plan
 
-**Status:** Draft v2 · **Last updated:** 2026-09-16 · Companion to [SRS.md](./SRS.md)
+**Status:** Draft v2 · **Last updated:** 2026-09-17 · Companion to [SRS.md](./SRS.md)
 
 Every `SEC-*`, `FR-*` and `NFR-*` requirement in SRS.md must have a named verification here. A requirement with no test is not implemented — only intended.
 
@@ -204,7 +204,7 @@ Admin reads and staff accounts: `src/app/api/v1/admin-endpoints.test.ts` — an 
 | `access-control.spec.ts` | anonymous `/admin` on admin host; `/admin` on public host; draft slug publicly; editor on `/admin/users` | redirect to login; 404; 404; 403 |
 | `editorial.spec.ts` | prefill with a mocked page; prefill with `169.254.169.254`; prefill page with hostile `og:image`; CSV dry-run then commit; CSV commit after a conflicting edit | populates as draft with staged images; rejected; image omitted with warning; commit succeeds; `IMPORT_STALE` shown |
 | `categories.spec.ts` | real facet, thin facet, random slug | renders; `noindex` meta present; 404 |
-| `search.spec.ts` | ⌘K; misspelling; diacritic-free query for "Zürich"-based company; type tabs | keyboard-only; found; found; filtered |
+| `search.spec.ts` | ⌘K then arrows and Enter; Escape then `/` then Enter; misspelling (`brightpth`); diacritic-free names (`cafe algorithmique`, `wisla robotcs`); type tabs; `/search?q=k` | keyboard-only to the company page; results page and a recent search; found with the close-match note; found; filtered with counts, `aria-current`; `noindex` and a prompt for more characters |
 | `responsive.spec.ts` | 360 / 768 / 1280 px on `/`, company, admin form | no horizontal scroll; filters in sheet on mobile |
 
 ## 11. Non-functional testing

@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** **backend done (M5)** — Phase 16 (category pages) built; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS at Phase 22 — Phase 17 next · **Last updated:** 2026-09-16
+**Status:** **backend done (M5)** — Phase 17 (search UI) built — **M6 public site complete**; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS and production suggest p95 at Phase 22 — Phase 18 next · **Last updated:** 2026-09-17
 
 ---
 
@@ -373,12 +373,13 @@ Verified by driving the dev and production servers in Chromium: axe clean on `/`
 
 ## Phase 17 · Search UI  *(FR-109)*
 
-- [ ] ⌘K palette on `/api/v1/suggest`, debounced 150 ms
-- [ ] `/search` grouped with type tabs; "showing results for" on trigram matches
-- [ ] Keyboard navigation, ARIA combobox, announced counts
-- [ ] Recent searches in `localStorage` (try/catch)
+- [x] ⌘K palette on `/api/v1/suggest`, debounced 150 ms — opened by the header's Search pill (a real `/search` link without JS or with a modifier key), ⌘K / Ctrl+K anywhere, or `/` outside a text field; prefixes cached in memory so backspace is instant
+- [x] `/search` grouped with type tabs; "No exact matches … showing results for names that look close" when `meta.matchType` is `trigram`. Each query is fetched once at `limit=24` for every group, so tabs switch without refetching and all show counts; beyond 24 the page says so and, for full-text company matches, links to `/companies?q=`. Static shell, results from the API, `noindex, follow`
+- [x] Keyboard navigation, ARIA combobox (focus stays in the input, `aria-activedescendant`), announced counts in a live region
+- [x] Recent searches in `localStorage` (try/catch): the last 5, case-insensitively de-duplicated, recorded on an explicit search only; offered in the empty palette and on `/search`, with Clear
+- [x] `e2e/search.spec.ts` (keyboard-only palette, Escape then `/`, a misspelling, diacritic-free names, tabs, noindex) passes with the graph and category specs against a production build; axe clean on the page and the open palette in both themes; no horizontal scroll at 360
 
-**EXIT:** misspellings and diacritic-free queries find results · keyboard-only operable · suggest p95 ≤ 150 ms.
+**EXIT:** misspellings and diacritic-free queries find results · keyboard-only operable · suggest p95 ≤ 150 ms. *Met locally* — `brightpth`, `cafe algorithmique` and `wisla robotcs` find their companies; the keyboard-only flow is a Playwright test; suggest measured p95 9 ms over 128 requests against a local production build and the fixture database. **Re-measure p95 against production at Phase 22** (remote database, 300 companies).
 
 ## Phase 18 · Admin UI  *(FR-201 … FR-210)* — admin origin only
 
@@ -428,6 +429,7 @@ Verified by driving the dev and production servers in Chromium: axe clean on `/`
 
 - [ ] **Accounts & plans (you):** Vercel **Pro** with spend management; Neon **Launch**; Upstash; Cloudflare R2 bucket with 30-day lifecycle; email provider; Sentry
 - [ ] **Builds need the database (Phase 14):** `/` and `/companies` prerender from cached reads, so Vercel builds must have `DATABASE_URL` and `CURSOR_SIGNING_SECRET` for their environment — previews against their Neon branch, production against production. CI builds against the seeded test database
+- [ ] **Suggest p95 ≤ 150 ms in production (FR-109, Phase 17):** measured 9 ms locally against fixtures only; re-measure from a browser region against the production database once ~300 companies are in
 - [ ] Call `attachDatabasePool(pool)` from `@vercel/functions` in `db/client.ts` so Fluid compute drains idle Neon connections before a function suspends
 - [ ] **Verify cache persistence on Vercel (NFR-02, ADR-013):** Next.js documents that the default in-memory `'use cache'` store usually does not persist across serverless instances. Against a preview deploy, request one company page from two clients and count DB queries. If entries are not shared, decide between relying on prerendered/ISR page output and `'use cache: remote'` (platform cache, extra cost) — a decision for the owner, with numbers
 - [ ] **Budget alerts** at 50 / 80 / 100% on Vercel, Neon, Upstash

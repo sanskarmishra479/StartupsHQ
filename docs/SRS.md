@@ -1,6 +1,6 @@
 # startupsHQ — Software Requirements Specification
 
-**Status:** Draft v2 · **Last updated:** 2026-09-16 · Companion to [PRD.md](./PRD.md)
+**Status:** Draft v2 · **Last updated:** 2026-09-17 · Companion to [PRD.md](./PRD.md)
 
 Requirement IDs are stable and referenced from tests and `TODO.md`: `FR-*` functional, `SEC-*` security, `NFR-*` non-functional, `DM-*` data model.
 
@@ -321,7 +321,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 | FR-106 | `/news` | Rounds newest-first grouped by date: logo, company, amount (with original currency when non-USD) or "Undisclosed", round type, date, source link. Paginated. |
 | FR-107 | `/categories` | Directory of all facets with ≥ 1 published company, grouped by kind. As built (Phase 16): thin facets are listed here too — this is the directory FR-107 describes; "excluded from nav" in FR-108 applies to site navigation and the sitemap. |
 | FR-108 | `/categories/{industries,stages,work-type,locations/cities,locations/countries}/[slug]` | One shared component. **404 unless the facet value exists and has ≥ 1 published company.** Copy from `taxonomy_pages` with a generated fallback for real values only. Facets with < 5 published companies render with `noindex` and are excluded from nav and sitemap. |
-| FR-109 | `/search` | Ranked full-text across the four entity types, grouped; trigram fallback for misspellings. Not cached per query. |
+| FR-109 | `/search` | Ranked full-text across the four entity types, grouped; trigram fallback for misspellings. Not cached per query. As built (Phase 17): a ⌘K / Ctrl+K palette on `GET /suggest` on every public page; `/search` is a static shell that fetches results, shows type tabs with counts, says when only close (trigram) matches were found, and is `noindex, follow`. Search covers names and text, not places — locations are browsed through `/categories`. Recent searches stay in the browser only. |
 | FR-110 | `/sitemap.xml`, `/robots.txt` | Sitemap: all published entities + indexable category pages. `robots.txt`: disallow `/api/`. |
 | FR-111 | OG images | Generated **at publish/update** via `next/og`, stored as a media asset (purpose `og`), referenced in metadata by Blob URL. No per-request OG rendering. As built (Phase 9): rendered after a successful publish and after editing a live record, re-encoded to WebP 1200×630 like any other image, replacing the previous card and its blobs; a rendering failure is logged and never undoes the write. |
 | FR-112 | `/about`, `/privacy` | Static. About: data sourcing, corrections and takedown policy. Privacy: what personal data is held, lawful basis, how to request access/correction/erasure/objection (SEC-18). Required at launch. |

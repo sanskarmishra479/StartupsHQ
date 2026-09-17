@@ -1,6 +1,6 @@
 # startupsHQ — Documentation
 
-**Last updated:** 2026-09-16
+**Last updated:** 2026-09-17
 
 Read in this order. Each document answers a different question; they cross-reference rather than repeat.
 
@@ -72,6 +72,7 @@ Each ADR carries a **Revisit if** line naming the condition that should reopen i
 | 2026-09-15 | Phase 6a: SRS SEC-04 records the cookie spike (`__Host-startupshq.*` works; sessions in Postgres only); SEC-08 records the limiter as built (fail closed as `429` + `Retry-After: 60`, 2FA account lockout disabled, local Redis + serverless-redis-http). Decisions: Resend for email; Redis + SRH containers for local/CI limits |
 | 2026-09-15 | Phase 6b: API §1 "Origins" documents host routing as built in `src/proxy.ts` — unknown hosts are public, admin host limited to `/admin`, `/api/auth`, `/api/v1`, `X-Robots-Tag: noindex` there. Phase 6 complete; session rotation on role change and invite/2FA-reset emails move to the users service |
 | 2026-09-15 | Phase 7: API §1 — a single-valued query param given twice is `400`; sub-resources answer only to the current slug. §6.8 and §6.10 name `GET /startups` as the source of later cohort and category pages. TEST_PLAN §9 records where the read contract tests live. Phase 7 complete |
+| 2026-09-17 | Phase 17: search UI built — ⌘K palette and `/search`; **M6 public site complete**. SRS FR-109 records it as built, including that search covers names and text rather than places; TEST_PLAN's `search.spec.ts` row names the real queries: the diacritic case uses company names (Café, Wisła), since search does not match place names such as Zürich. Suggest p95 to be re-measured in production at Phase 22 |
 | 2026-09-17 | Phase 16: category directory and pages built. SRS FR-107 records that thin facets stay listed in the directory itself. `e2e/categories.spec.ts` added |
 | 2026-09-16 | Phase 15: entity pages built. SRS FR-102 records that page redirects for old slugs are 308 (the API keeps 301). `e2e/graph.spec.ts` added (TEST_PLAN §10) |
 | 2026-09-16 | Phase 14: `/` landing and `/companies` grid built. API §6.10a country entries gain `countryCode` (additive). SRS FR-101 records the grid as built: static page, URL state under the API's parameter names, filtered pages from the API |
