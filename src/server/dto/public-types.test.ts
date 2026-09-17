@@ -13,6 +13,14 @@ import type { Image } from "./image";
 import type { Investor, InvestorBreakdown } from "./investor";
 import type { NewsItem } from "./news";
 import type {
+  BatchHit,
+  FounderHit,
+  InvestorHit,
+  SearchResults,
+  Suggestion,
+  SuggestionType,
+} from "./search";
+import type {
   FounderRole,
   HeadcountBand,
   InvestorType,
@@ -57,5 +65,11 @@ describe("src/types/public.ts", () => {
     expectTypeOf<Client.CategoryKind>().toEqualTypeOf<CategoryKind>();
     expectTypeOf<Client.CategoryEntry>().toEqualTypeOf<CategoryEntry>();
     expectTypeOf<Client.CategoryDirectory>().toEqualTypeOf<CategoryDirectory>();
+    expectTypeOf<Client.FounderHit>().toEqualTypeOf<FounderHit>();
+    expectTypeOf<Client.InvestorHit>().toEqualTypeOf<InvestorHit>();
+    expectTypeOf<Client.BatchHit>().toEqualTypeOf<BatchHit>();
+    expectTypeOf<Client.SearchResults>().toEqualTypeOf<SearchResults>();
+    expectTypeOf<Client.SuggestionType>().toEqualTypeOf<SuggestionType>();
+    expectTypeOf<Client.Suggestion>().toEqualTypeOf<Suggestion>();
   });
 });

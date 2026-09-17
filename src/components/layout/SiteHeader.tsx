@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Logo } from "../brand/Logo";
-import { SearchIcon } from "../ui/icons";
-import { PillButton } from "../ui/PillButton";
+import { SearchLauncher } from "../search/SearchLauncher";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { SectionNav } from "./SectionNav";
 
@@ -23,15 +22,7 @@ export function SiteHeader() {
           </Link>
           <SectionNav label="Sections" className="hidden md:block" />
           <div className="flex items-center gap-2">
-            <PillButton
-              href="/search"
-              size="sm"
-              aria-label="Search"
-              className="max-sm:size-8 max-sm:px-0"
-            >
-              <SearchIcon />
-              <span className="hidden sm:inline">Search</span>
-            </PillButton>
+            <SearchLauncher size="sm" className="max-sm:size-8 max-sm:px-0" />
             <ThemeToggle />
           </div>
         </div>

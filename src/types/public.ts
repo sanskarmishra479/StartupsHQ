@@ -280,3 +280,51 @@ export type CategoryPage = Readonly<{
   companies: readonly StartupCard[];
   pagination: Pagination;
 }>;
+
+/** docs/API.md §6.11, §7.9. */
+export type SearchGroup<T> = Readonly<{ results: readonly T[]; total: number }>;
+
+export type FounderHit = Readonly<{
+  slug: string;
+  fullName: string;
+  headline: string | null;
+  photo: Image | null;
+  startupCount: number;
+}>;
+
+export type InvestorHit = Readonly<{
+  slug: string;
+  name: string;
+  investorType: InvestorType;
+  logo: Image | null;
+  portfolioCount: number;
+}>;
+
+export type BatchHit = Readonly<{
+  slug: string;
+  programName: string;
+  label: string;
+  year: number;
+  companyCount: number;
+}>;
+
+export type SearchResults = Readonly<{
+  data: Readonly<{
+    startups: SearchGroup<StartupCard>;
+    founders: SearchGroup<FounderHit>;
+    investors: SearchGroup<InvestorHit>;
+    batches: SearchGroup<BatchHit>;
+  }>;
+  meta: Readonly<{ query: string; matchType: "fulltext" | "trigram" }>;
+}>;
+
+/** docs/API.md §6.12. */
+export type SuggestionType = "startup" | "founder" | "investor" | "batch";
+
+export type Suggestion = Readonly<{
+  type: SuggestionType;
+  slug: string;
+  name: string;
+  subtitle: string | null;
+  logo: Image | null;
+}>;

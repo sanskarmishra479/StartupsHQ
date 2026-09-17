@@ -6,8 +6,9 @@ import type { StartupCard } from "@/types/public";
 import { Logo } from "../brand/Logo";
 import { EmptyState } from "../data/EmptyState";
 import { SectionNav } from "../layout/SectionNav";
+import { SearchLauncher } from "../search/SearchLauncher";
 import { IconToggle } from "../ui/IconToggle";
-import { ArrowRightIcon, GridIcon, ListIcon, SearchIcon } from "../ui/icons";
+import { ArrowRightIcon, GridIcon, ListIcon } from "../ui/icons";
 import { PillButton } from "../ui/PillButton";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { CurvedGrid, type Mode } from "./CurvedGrid";
@@ -81,15 +82,7 @@ export function Landing({
           <div className="hidden sm:block">
             <ThemeToggle />
           </div>
-          <PillButton
-            href="/search"
-            size="md"
-            aria-label="Search"
-            className="max-sm:size-10 max-sm:px-0"
-          >
-            <SearchIcon />
-            <span className="hidden sm:inline">Search</span>
-          </PillButton>
+          <SearchLauncher className="max-sm:size-10 max-sm:px-0" />
         </div>
       </header>
 
