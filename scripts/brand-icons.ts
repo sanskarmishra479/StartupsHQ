@@ -1,6 +1,10 @@
 import { writeFileSync } from "node:fs";
 import sharp from "sharp";
-import { MARK_ARTBOARD, MARK_PARTS } from "../src/components/brand/mark";
+import {
+  MARK_ARTBOARD,
+  MARK_PARTS,
+  MARK_TONES,
+} from "../src/components/brand/mark";
 
 // Regenerates the site icons from the mark's geometry (Next.js metadata file conventions):
 //
@@ -13,9 +17,7 @@ import { MARK_ARTBOARD, MARK_PARTS } from "../src/components/brand/mark";
 // Generated rather than copied from public/brand/ so no editor or provenance metadata from the
 // source files is served with every page, and so the icons cannot drift from the inline logo.
 
-/** Solid and grey halves: the source file's near-black, and the middle of its grey gradient. */
-const SOLID = "#0d0d0d";
-const TINT = "#c8c8c8";
+const { tile: TILE, solid: SOLID, tint: TINT } = MARK_TONES;
 
 const shapes = MARK_PARTS.map(
   ({ tone, rects }) =>
@@ -28,7 +30,7 @@ const shapes = MARK_PARTS.map(
 ).join("");
 
 /** The mark centred on a white square, as in the owner's source file. */
-const tiled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MARK_ARTBOARD} ${MARK_ARTBOARD}"><style>.solid{fill:${SOLID}}.tint{fill:${TINT}}</style><rect width="${MARK_ARTBOARD}" height="${MARK_ARTBOARD}" fill="#ffffff"/>${shapes}</svg>\n`;
+const tiled = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${MARK_ARTBOARD} ${MARK_ARTBOARD}"><style>.solid{fill:${SOLID}}.tint{fill:${TINT}}</style><rect width="${MARK_ARTBOARD}" height="${MARK_ARTBOARD}" fill="${TILE}"/>${shapes}</svg>\n`;
 
 /** An .ico holding PNG images, which every current browser reads. */
 function ico(images: readonly { size: number; png: Buffer }[]): Buffer {

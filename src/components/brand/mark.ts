@@ -15,11 +15,19 @@ export type MarkPart = Readonly<{
   rects: readonly Rect[];
 }>;
 
-/** The source file's 200×200 artboard. */
-export const MARK_ARTBOARD = 200;
+/**
+ * Fixed colours, never themed: the mark always sits centred on its white square (owner's call,
+ * 2026-09-17), inline and in the generated icons alike. Solid is the source file's near-black,
+ * tint the middle of its grey gradient.
+ */
+export const MARK_TONES = {
+  tile: "#ffffff",
+  solid: "#0d0d0d",
+  tint: "#c8c8c8",
+} as const;
 
-/** Tight bounds of the drawn shape inside the artboard, for inline use without the padding. */
-export const MARK_VIEWBOX = "24 37 152 127";
+/** The source file's 200×200 artboard; the drawn shape is centred in it. */
+export const MARK_ARTBOARD = 200;
 
 /**
  * In paint order, which matters: each half overlaps its neighbour, and the later one covers the

@@ -1,5 +1,5 @@
 import { cx } from "@/lib/cx";
-import { MARK_PARTS, MARK_VIEWBOX } from "./mark";
+import { MARK_ARTBOARD, MARK_PARTS, MARK_TONES } from "./mark";
 
 type LogoProps = Readonly<{
   /** Show "StartupsHQ" beside the mark. The visible name is then its accessible name too. */
@@ -13,8 +13,8 @@ type LogoProps = Readonly<{
 }>;
 
 /**
- * The mark in `currentColor`, so it follows the theme and the text colour around it. The grey
- * halves are the current colour mixed into the page background: opaque, as the overlaps need.
+ * The mark centred on its white square, as in the favicon, in both themes. The colours are fixed
+ * (MARK_TONES); a hairline in the border token keeps the square visible on the light theme.
  */
 export function Logo({ wordmark = false, className, title }: LogoProps) {
   const label = wordmark ? undefined : title;
@@ -22,28 +22,29 @@ export function Logo({ wordmark = false, className, title }: LogoProps) {
     <span
       className={cx(
         "inline-flex items-center",
-        wordmark && "gap-[0.4em] font-semibold tracking-tight",
+        wordmark && "gap-[0.5em] font-semibold tracking-tight",
         className,
       )}
     >
       <svg
-        viewBox={MARK_VIEWBOX}
-        className="h-[1em] w-auto shrink-0"
+        viewBox={`0 0 ${MARK_ARTBOARD} ${MARK_ARTBOARD}`}
+        className="size-[1.5em] shrink-0 shadow-[0_0_0_1px_var(--border)]"
         role={label ? "img" : undefined}
         aria-label={label}
         aria-hidden={label ? undefined : true}
         focusable="false"
       >
+        <rect
+          width={MARK_ARTBOARD}
+          height={MARK_ARTBOARD}
+          fill={MARK_TONES.tile}
+        />
         {MARK_PARTS.map(({ tone, rects }, part) => (
           <g
             // The parts are a fixed list in paint order.
             // biome-ignore lint/suspicious/noArrayIndexKey: never reordered.
             key={part}
-            className={
-              tone === "solid"
-                ? "fill-current"
-                : "fill-[color-mix(in_srgb,currentColor_38%,var(--bg))]"
-            }
+            fill={MARK_TONES[tone]}
           >
             {rects.map((rect) => (
               <rect key={`${rect.width}-${rect.rx}`} {...rect} />
