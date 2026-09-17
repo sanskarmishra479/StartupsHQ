@@ -37,7 +37,7 @@ import {
   type ImportRow,
   importRowSchema,
 } from "../validation/import";
-import { parseInput } from "../validation/shared";
+import { isUuid, parseInput } from "../validation/shared";
 
 // CSV bulk import (docs/API.md §8.7, FR-402, SEC-07).
 //
@@ -780,6 +780,51 @@ export async function commit(
 }
 
 // ── The report, as a CSV an editor can open ──────────────────────────────────────────────────
+
+export type ImportJobReport = Readonly<{
+  importJobId: string;
+  filename: string;
+  status: "dry_run" | "committed" | "expired" | "failed";
+  expiresAt: string;
+  committedAt: string | null;
+  rowCount: number;
+  summary: DryRunResult["summary"];
+  rows: readonly ReportedRow[];
+}>;
+
+/**
+ * A stored dry run, as the import screen shows it when reopened (FR-206). The names of founders
+ * and investors a commit would create are worked out at upload and not kept, so they are absent.
+ */
+export async function getJob(
+  ctx: ReadContext,
+  importJobId: string,
+): Promise<ImportJobReport> {
+  assertEditor(ctx);
+  if (!isUuid(importJobId)) throw new NotFoundError();
+  const [job] = await getDb()
+    .select()
+    .from(importJobs)
+    .where(eq(importJobs.id, importJobId));
+  if (!job) throw new NotFoundError();
+  const expired =
+    job.status === "dry_run" && job.expiresAt.getTime() <= Date.now();
+  return {
+    importJobId: job.id,
+    filename: job.filename,
+    status: expired ? "expired" : job.status,
+    expiresAt: job.expiresAt.toISOString(),
+    committedAt: job.committedAt?.toISOString() ?? null,
+    rowCount: job.rowCount,
+    summary: {
+      create: job.createCount,
+      update: job.updateCount,
+      skip: job.skipCount,
+      error: job.errorCount,
+    },
+    rows: (job.rows as PlannedRow[]).map(report),
+  };
+}
 
 export async function exportReport(
   ctx: ReadContext,

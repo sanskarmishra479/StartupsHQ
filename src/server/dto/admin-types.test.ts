@@ -23,6 +23,7 @@ describe("src/types/admin.ts", () => {
     expectTypeOf<Client.PrefillDraft>().toEqualTypeOf<Prefill.PrefillDraft>();
     expectTypeOf<Client.DryRunResult>().toEqualTypeOf<Import.DryRunResult>();
     expectTypeOf<Client.CommitResult>().toEqualTypeOf<Import.CommitResult>();
+    expectTypeOf<Client.ImportJobReport>().toEqualTypeOf<Import.ImportJobReport>();
     expectTypeOf<Client.AdminUser>().toEqualTypeOf<Users.AdminUser>();
     expectTypeOf<Client.PrivacyRequest>().toEqualTypeOf<Privacy.PrivacyRequest>();
   });

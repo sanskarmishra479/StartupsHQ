@@ -70,3 +70,12 @@ export const STATUS_LABELS: Record<RecordStatus, string> = {
   published: "Published",
   archived: "Archived",
 };
+
+/**
+ * A public page's full URL. The admin origin serves no public pages (ADR-014), so links to them
+ * name the public origin, which the build inlines from NEXT_PUBLIC_SITE_URL.
+ */
+export function publicUrl(path: string): string {
+  const origin = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/+$/, "");
+  return `${origin}${path}`;
+}

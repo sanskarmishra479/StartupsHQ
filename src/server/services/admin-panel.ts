@@ -14,6 +14,7 @@ import {
 import type { ReadContext } from "../auth/context";
 import { assertEditor } from "../auth/guards";
 import { getDb } from "../db/client";
+import { TAXONOMY_KIND } from "../db/queries/facets";
 import {
   auditLog,
   batches,
@@ -28,6 +29,7 @@ import {
   taxonomyPages,
   users,
 } from "../db/schema";
+import type { CategoryKind } from "../dto/category";
 import { type Image, toImage } from "../dto/image";
 import { isUuid } from "../validation/shared";
 import {
@@ -268,7 +270,7 @@ export async function listMedia(
 }
 
 export type CategoryCopy = Readonly<{
-  kind: string;
+  kind: CategoryKind;
   slug: string;
   heading: string | null;
   intro: string | null;
@@ -278,26 +280,38 @@ export type CategoryCopy = Readonly<{
   sortOrder: number;
 }>;
 
-/** The editor-written copy that exists, keyed `kind/slug`; values without a row use generated copy. */
+/**
+ * The editor-written copy that exists, keyed `kind/slug` with the API's kind names
+ * (`industries/ai`); values without a row show generated copy.
+ */
 export async function listCategoryCopy(
   ctx: ReadContext,
 ): Promise<Record<string, CategoryCopy>> {
   assertEditor(ctx);
+  const apiKind = Object.fromEntries(
+    Object.entries(TAXONOMY_KIND).map(([kind, stored]) => [stored, kind]),
+  ) as Record<string, CategoryKind>;
   const rows = await getDb().select().from(taxonomyPages);
   return Object.fromEntries(
-    rows.map((row) => [
-      `${row.kind}/${row.slug}`,
-      {
-        kind: row.kind,
-        slug: row.slug,
-        heading: row.heading,
-        intro: row.intro,
-        iconUrl: row.iconUrl,
-        seoTitle: row.seoTitle,
-        seoDescription: row.seoDescription,
-        sortOrder: row.sortOrder,
-      },
-    ]),
+    rows.flatMap((row) => {
+      const kind = apiKind[row.kind];
+      if (!kind) return [];
+      return [
+        [
+          `${kind}/${row.slug}`,
+          {
+            kind,
+            slug: row.slug,
+            heading: row.heading,
+            intro: row.intro,
+            iconUrl: row.iconUrl,
+            seoTitle: row.seoTitle,
+            seoDescription: row.seoDescription,
+            sortOrder: row.sortOrder,
+          },
+        ],
+      ];
+    }),
   );
 }
 

@@ -8,6 +8,7 @@ import {
   entityForSegment,
 } from "@/components/admin/entities";
 import { StartupEditor } from "@/components/admin/startup/StartupEditor";
+import { Money } from "@/components/data/Money";
 import { editorData, recordOrNull } from "../../../_lib/editor-data";
 import { requirePanel } from "../../../_lib/session";
 
@@ -48,8 +49,54 @@ export default async function EditRecordPage({
     kind === "round" && typeof record.derived.startupId === "string"
       ? record.derived.startupId
       : null;
+  const derived = record.derived;
+  const conversion =
+    kind === "round" ? (
+      <section
+        aria-labelledby="conversion"
+        className="flex flex-col gap-2 rounded-md border border-border p-4 text-sm"
+      >
+        <h2 id="conversion" className="meta text-fg-subtle">
+          Computed on save
+        </h2>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
+          <dt className="text-fg-subtle">US dollars</dt>
+          <dd>
+            {typeof derived.amountUsd === "number" ? (
+              <Money amountUsd={derived.amountUsd} />
+            ) : (
+              "—"
+            )}
+          </dd>
+          <dt className="text-fg-subtle">Rate</dt>
+          <dd className="font-mono">
+            {typeof derived.fxRate === "string" ? derived.fxRate : "—"}
+          </dd>
+          <dt className="text-fg-subtle">Rate date</dt>
+          <dd>
+            {typeof derived.fxRateDate === "string" ? derived.fxRateDate : "—"}
+          </dd>
+          <dt className="text-fg-subtle">Source</dt>
+          <dd>
+            {derived.fxSource === "manual"
+              ? "Manual (admin)"
+              : derived.fxSource === "ecb"
+                ? "ECB"
+                : "—"}
+          </dd>
+          <dt className="text-fg-subtle">Counts as</dt>
+          <dd>
+            {typeof derived.roundClass === "string"
+              ? derived.roundClass.replace("_", "-")
+              : "—"}
+          </dd>
+        </dl>
+      </section>
+    ) : undefined;
+
   return (
     <EntityEditor
+      aside={conversion}
       key={record.id}
       kind={kind}
       record={record}

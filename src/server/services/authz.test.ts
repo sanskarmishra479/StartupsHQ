@@ -450,6 +450,13 @@ const REGISTRY: AuthzRegistry = {
     invoke: (ctx) => adminPanel.listCategoryCopy(ctx),
     seesDraft: (result) => typeof result === "object" && result !== null,
   },
+  "services/import.ts#getJob": {
+    kind: "editor-read",
+    // No job exists for a nil id: editors get past the guard to a NotFound, read as "seen".
+    invoke: (ctx) =>
+      orNull(importService.getJob(ctx, NIL_UUID)).then(() => true),
+    seesDraft: (result) => result === true,
+  },
   // CSV import (FR-402). A one-row file: authorized callers get a dry run, nobody else does.
   "services/import.ts#dryRun": {
     kind: "mutation",

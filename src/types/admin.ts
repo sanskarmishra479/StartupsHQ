@@ -1,4 +1,4 @@
-import type { Image } from "./public";
+import type { CategoryKind, Image } from "./public";
 
 // The admin panel's shapes (docs/API.md §7.10, §8), for components on the admin origin only.
 // Declared here because nothing outside src/server may import from it (SEC-01);
@@ -65,7 +65,7 @@ export type MediaItem = Readonly<{
 }>;
 
 export type CategoryCopy = Readonly<{
-  kind: string;
+  kind: CategoryKind;
   slug: string;
   heading: string | null;
   intro: string | null;
@@ -174,4 +174,15 @@ export type PrivacyRequest = Readonly<{
   dueAt: string;
   notes: string | null;
   resolvedAt: string | null;
+}>;
+
+export type ImportJobReport = Readonly<{
+  importJobId: string;
+  filename: string;
+  status: "dry_run" | "committed" | "expired" | "failed";
+  expiresAt: string;
+  committedAt: string | null;
+  rowCount: number;
+  summary: DryRunResult["summary"];
+  rows: readonly ReportedRow[];
 }>;

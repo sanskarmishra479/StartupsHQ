@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { adminApi } from "@/lib/admin-api";
@@ -8,7 +7,7 @@ import { isSlug } from "@/lib/slug";
 import type { AdminEntity, AdminRecord } from "@/types/admin";
 import { PillButton } from "../../ui/PillButton";
 import { Dialog } from "../Dialog";
-import { adminPaths, ENTITY_INFO } from "../entities";
+import { adminPaths, ENTITY_INFO, publicUrl } from "../entities";
 import { Field, Notice, TextInput } from "../form";
 import { StatusBadge } from "../StatusBadge";
 import { formatTimestamp } from "../time";
@@ -194,15 +193,14 @@ export function RecordActions({
       )}
 
       {record?.slug && status === "published" && info.publicPath && (
-        <Link
-          href={info.publicPath(record.slug)}
+        <a
+          href={publicUrl(info.publicPath(record.slug))}
           target="_blank"
           rel="noopener"
-          prefetch={false}
           className="text-fg-muted text-sm underline underline-offset-2 hover:text-fg"
         >
           View on the public site
-        </Link>
+        </a>
       )}
 
       {record && isAdmin && (
