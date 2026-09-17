@@ -319,7 +319,7 @@ Endpoint paths, parameters and DTO shapes are specified in [API.md](./API.md). T
 | FR-104 | `/investors/[slug]` | Logo, name, type, description, website, portfolio grid (paginated), rounds led, stage and industry breakdown. |
 | FR-105 | `/batches/[slug]` | Program + label, dates, cohort grid, stats: company count, total raised, top 5 industries. |
 | FR-106 | `/news` | Rounds newest-first grouped by date: logo, company, amount (with original currency when non-USD) or "Undisclosed", round type, date, source link. Paginated. |
-| FR-107 | `/categories` | Directory of all facets with ≥ 1 published company, grouped by kind. |
+| FR-107 | `/categories` | Directory of all facets with ≥ 1 published company, grouped by kind. As built (Phase 16): thin facets are listed here too — this is the directory FR-107 describes; "excluded from nav" in FR-108 applies to site navigation and the sitemap. |
 | FR-108 | `/categories/{industries,stages,work-type,locations/cities,locations/countries}/[slug]` | One shared component. **404 unless the facet value exists and has ≥ 1 published company.** Copy from `taxonomy_pages` with a generated fallback for real values only. Facets with < 5 published companies render with `noindex` and are excluded from nav and sitemap. |
 | FR-109 | `/search` | Ranked full-text across the four entity types, grouped; trigram fallback for misspellings. Not cached per query. |
 | FR-110 | `/sitemap.xml`, `/robots.txt` | Sitemap: all published entities + indexable category pages. `robots.txt`: disallow `/api/`. |

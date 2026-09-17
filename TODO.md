@@ -5,7 +5,7 @@ Requirement IDs (`FR-*`, `SEC-*`, `NFR-*`, `DM-*`) refer to SRS.md — check the
 
 **Order: the entire backend ships and is tested before any UI work begins.** The API is the contract; the frontend consumes a finished, verified one.
 
-**Status:** **backend done (M5)** — Phase 15 (entity pages) built; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS at Phase 22 — Phase 16 next · **Last updated:** 2026-09-16
+**Status:** **backend done (M5)** — Phase 16 (category pages) built; open checks: real-phone FPS, accent colour, Lighthouse on `/`, Blob CORS at Phase 22 — Phase 17 next · **Last updated:** 2026-09-16
 
 ---
 
@@ -355,7 +355,7 @@ Verified by driving the dev and production servers in Chromium: axe clean on `/`
 - [x] 404 for unknown/draft/archived; **permanent redirect for old slugs** — the record is looked up before anything streams, so these are real HTTP statuses. Pages answer **308** (Next.js `permanentRedirect`); the API keeps 301
 - [x] Totals: raised, and debt separately when present; non-USD rounds show original currency; rounds cite their sources
 - [x] Founder pages render multiple stints (current/past, tenure); initials when no photo
-- [x] **Every entity mention is a link** — audited by crawling: 45 entity pages reachable from one company, all 200. Industry, stage, work-type and city mentions link to `/categories/…`, which 404 until Phase 16
+- [x] **Every entity mention is a link** — audited by crawling: 45 entity pages reachable from one company, all 200; their category links resolve since Phase 16
 - [x] Investor portfolio and batch cohort load later pages from the API (cohort with `include_acquired=true`, as its first page); news loads later pages from `GET /api/v1/rounds`
 - [x] `e2e/graph.spec.ts`: the PRD §8 walk by clicks, the link crawl, old-slug redirect and hidden-record 404s — passing against a production build
 
@@ -363,11 +363,13 @@ Verified by driving the dev and production servers in Chromium: axe clean on `/`
 
 ## Phase 16 · Category pages  *(FR-107, FR-108)*
 
-- [ ] `/categories` (facets with ≥ 1 company) and five route shapes via one component
-- [ ] 404 for nonexistent values; `noindex` when `isIndexable` is false
-- [ ] Generated fallback copy for real values without a taxonomy row
+- [x] `/categories` (every facet value with ≥ 1 published company, grouped by kind) and the five route shapes through one route module (`categories/_lib/category-route.tsx`), known values prerendered from the cached directory
+- [x] Real 404 for nonexistent values and values whose only companies are hidden (looked up before streaming); `noindex, follow` when `isIndexable` is false
+- [x] Generated fallback copy for real values without a taxonomy row (server-side, DM-09); editor intro rendered as plain-text paragraphs, never HTML
+- [x] Company lists continue via `GET /startups` with the same facet and `include_acquired=true` (countries by ISO code); verified for all five kinds that the continuation query returns exactly the category's companies
+- [x] `e2e/categories.spec.ts` (real, thin, random-slug, all shapes, company-page category links) and `e2e/graph.spec.ts` pass against a production build; axe clean; no horizontal scroll at 360
 
-**EXIT:** real, thin and random-slug cases behave per `categories.spec.ts`.
+**EXIT:** real, thin and random-slug cases behave per `categories.spec.ts`. *Met.*
 
 ## Phase 17 · Search UI  *(FR-109)*
 
