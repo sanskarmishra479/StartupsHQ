@@ -1,6 +1,16 @@
 import "server-only";
 
-import { and, asc, count, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import type { ReadContext } from "../auth/context";
 import { assertEditor } from "../auth/guards";
 import { getDb } from "../db/client";
@@ -19,6 +29,7 @@ import {
   users,
 } from "../db/schema";
 import { type Image, toImage } from "../dto/image";
+import { isUuid } from "../validation/shared";
 import {
   ADMIN_ENTITIES,
   type AdminEntity,
@@ -288,4 +299,28 @@ export async function listCategoryCopy(
       },
     ]),
   );
+}
+
+/** Previews for the assets a form already references, keyed by asset id. */
+export async function getAssetImages(
+  ctx: ReadContext,
+  ids: readonly string[],
+): Promise<Record<string, Image>> {
+  assertEditor(ctx);
+  const wanted = [...new Set(ids.filter(isUuid))];
+  if (wanted.length === 0) return {};
+  const rows = await getDb()
+    .select({
+      id: mediaAssets.id,
+      variants: mediaAssets.variants,
+      blurDataUrl: mediaAssets.blurDataUrl,
+    })
+    .from(mediaAssets)
+    .where(inArray(mediaAssets.id, wanted));
+  const images: Record<string, Image> = {};
+  for (const row of rows) {
+    const image = toImage(row);
+    if (image) images[row.id] = image;
+  }
+  return images;
 }

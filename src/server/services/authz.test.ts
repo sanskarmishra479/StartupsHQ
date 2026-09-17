@@ -440,6 +440,11 @@ const REGISTRY: AuthzRegistry = {
     invoke: (ctx) => adminPanel.listMedia(ctx),
     seesDraft: (result) => Array.isArray(result),
   },
+  "services/admin-panel.ts#getAssetImages": {
+    kind: "editor-read",
+    invoke: (ctx) => adminPanel.getAssetImages(ctx, [NIL_UUID]),
+    seesDraft: (result) => typeof result === "object" && result !== null,
+  },
   "services/admin-panel.ts#listCategoryCopy": {
     kind: "editor-read",
     invoke: (ctx) => adminPanel.listCategoryCopy(ctx),
