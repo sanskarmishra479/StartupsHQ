@@ -7,7 +7,14 @@ import { assertEditor } from "../auth/guards";
 import { getDb } from "../db/client";
 import { locations } from "../db/schema";
 import type { Image } from "../dto/image";
-import { RateLimitedError, UnsafeUrlError } from "../lib/errors";
+import {
+  PayloadTooLargeError,
+  RateLimitedError,
+  UnprocessableError,
+  UnsafeUrlError,
+  UnsupportedMediaTypeError,
+  ValidationError,
+} from "../lib/errors";
 import { getRedis, hitWindow, limitKey } from "../lib/redis";
 import { assertSafeUrl, type SafeResponse, safeFetch } from "../lib/safe-fetch";
 import { type PrefillInput, prefillSchema } from "../validation/prefill";
@@ -326,6 +333,13 @@ function extract(html: string, pageUrl: string): Extracted {
 
 // ── Images and location ──────────────────────────────────────────────────────────────────────
 
+/** What storeRemoteImage throws for an image it will not take: not a failure on our side. */
+const isImageRefusal = (error: unknown) =>
+  error instanceof UnsupportedMediaTypeError ||
+  error instanceof PayloadTooLargeError ||
+  error instanceof ValidationError ||
+  error instanceof UnprocessableError;
+
 async function fetchImage(
   ctx: ReadContext,
   fetcher: typeof safeFetch,
@@ -350,12 +364,22 @@ async function fetchImage(
     });
     return { assetId: stored.assetId, state: "staging", image: stored.image };
   } catch (error) {
-    // Never echoes a resolved address (SEC-05): UnsafeUrlError messages are written for that.
-    const reason =
-      error instanceof UnsafeUrlError
-        ? error.message.replace(/^This URL can't be fetched: /, "")
-        : "it could not be read as a JPEG, PNG or WebP image.";
-    warnings.push(`The ${purpose} was rejected: ${reason}`);
+    if (error instanceof UnsafeUrlError) {
+      // Never echoes a resolved address (SEC-05): UnsafeUrlError messages are written for that.
+      const reason = error.message.replace(/^This URL can't be fetched: /, "");
+      warnings.push(`The ${purpose} was rejected: ${reason}`);
+    } else if (isImageRefusal(error)) {
+      warnings.push(
+        `The ${purpose} was rejected: it could not be read as a JPEG, PNG or WebP image.`,
+      );
+    } else {
+      // Our side failed (image storage, say), not the image: say so, and keep the detail in the
+      // server log rather than in the response (SEC-12).
+      console.error(`[prefill] the ${purpose} could not be stored`, error);
+      warnings.push(
+        `The ${purpose} was found but could not be stored. Check the image storage settings and try again.`,
+      );
+    }
     return null;
   }
 }

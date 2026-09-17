@@ -9,6 +9,7 @@ import {
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import { closeDb, getDb } from "../db/client";
 import { locations, mediaAssets, startups } from "../db/schema";
@@ -314,6 +315,42 @@ describe("hostile URLs are refused (SEC-05)", () => {
     );
     expect(draft.logo).toBeNull();
     expect(draft.warnings.join(" ")).toMatch(/logo was rejected/i);
+  });
+});
+
+describe("when image storage fails", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
+  });
+
+  it("says the image could not be stored, not that it was unreadable", async () => {
+    // Production without a storage token refuses to store, exactly like a misconfigured store.
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("BLOB_READ_WRITE_TOKEN", "");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const draft = await prefill(
+      editor,
+      { url: PAGE },
+      {
+        fetch: fetcherFor({
+          [PAGE]: {
+            body: page({
+              head: '<link rel="apple-touch-icon" href="/apple.png">',
+            }),
+          },
+          "https://acme-robotics.example/apple.png": {
+            contentType: "image/png",
+            body: await png(180, 180),
+          },
+        }),
+      },
+    );
+    expect(draft.logo).toBeNull();
+    const warnings = draft.warnings.join(" ");
+    expect(warnings).toMatch(/logo was found but could not be stored/i);
+    expect(warnings).not.toMatch(/JPEG, PNG or WebP/);
+    expect(logged).toHaveBeenCalled();
   });
 });
 
