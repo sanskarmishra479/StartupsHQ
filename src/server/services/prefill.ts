@@ -119,8 +119,9 @@ type Extracted = {
   taglineConfidence: Confidence;
   description: string | null;
   descriptionConfidence: Confidence;
-  logoUrl: string | null;
-  coverUrl: string | null;
+  /** In order of preference; tried one after another until one can be stored. */
+  logoUrls: string[];
+  coverUrls: string[];
   careersUrl: string | null;
   links: PrefillDraft["links"];
   locationRaw: string | null;
@@ -229,6 +230,25 @@ function absoluteHttps(candidate: string | null, base: string): string | null {
   }
 }
 
+/** Each fetch is a request to a host the page chose, so the list is short. */
+const MAX_LOGO_CANDIDATES = 4;
+const MAX_COVER_CANDIDATES = 2;
+
+/** Distinct https URLs, resolved against the page, in the order given. */
+function candidates(
+  values: readonly (string | null | undefined)[],
+  base: string,
+  max: number,
+): string[] {
+  const urls: string[] = [];
+  for (const value of values) {
+    const url = absoluteHttps(value ?? null, base);
+    if (url && !urls.includes(url)) urls.push(url);
+    if (urls.length === max) break;
+  }
+  return urls;
+}
+
 function extract(html: string, pageUrl: string): Extracted {
   const $ = cheerio.load(html);
   const content = (selector: string) =>
@@ -294,10 +314,22 @@ function extract(html: string, pageUrl: string): Extracted {
     careersCandidates.find((href) => ATS_HOSTS.test(hostOf(href))) ??
     null;
 
-  const iconHref =
-    $('link[rel~="apple-touch-icon"]').attr("href") ??
-    $('link[rel~="icon"]').attr("href") ??
-    "/favicon.ico";
+  const hrefsOf = (selector: string) =>
+    $(selector)
+      .map((_, element) => $(element).attr("href") ?? "")
+      .get()
+      .filter(Boolean);
+  // Raster icons first: an SVG or ICO is refused, so it is tried only when nothing else is named.
+  const looksVector = (href: string) => /\.(svg|ico)(\?|#|$)/i.test(href);
+  const icons = [
+    ...hrefsOf('link[rel~="apple-touch-icon"]'),
+    ...hrefsOf('link[rel~="icon"]'),
+  ];
+  const iconHrefs = [
+    ...icons.filter((href) => !looksVector(href)),
+    ...icons.filter(looksVector),
+  ];
+  if (iconHrefs.length === 0) iconHrefs.push("/favicon.ico");
 
   return {
     name,
@@ -311,10 +343,16 @@ function extract(html: string, pageUrl: string): Extracted {
       : ogDescription
         ? "medium"
         : "low",
-    logoUrl:
-      absoluteHttps(imageFrom(organization?.logo), pageUrl) ??
-      absoluteHttps(iconHref, pageUrl),
-    coverUrl: absoluteHttps(og("image"), pageUrl),
+    logoUrls: candidates(
+      [imageFrom(organization?.logo), ...iconHrefs],
+      pageUrl,
+      MAX_LOGO_CANDIDATES,
+    ),
+    coverUrls: candidates(
+      [og("image"), content('meta[name="twitter:image"]')],
+      pageUrl,
+      MAX_COVER_CANDIDATES,
+    ),
     careersUrl,
     links: {
       linkedin: anchorHref(/^https:\/\/([a-z]+\.)?linkedin\.com\//i),
@@ -340,48 +378,52 @@ const isImageRefusal = (error: unknown) =>
   error instanceof ValidationError ||
   error instanceof UnprocessableError;
 
+/**
+ * Tries each candidate in turn and keeps the first image that can be stored. When none can, one
+ * warning gives the last reason. A failure on our side (image storage) stops at once, since the
+ * next candidate would fail the same way.
+ */
 async function fetchImage(
   ctx: ReadContext,
   fetcher: typeof safeFetch,
-  candidate: string | null,
+  urls: readonly string[],
   purpose: "logo" | "cover",
   warnings: string[],
 ): Promise<PrefillAsset | null> {
-  if (!candidate) return null;
-  try {
-    // Attacker-chosen, exactly like the page: validated again, on its own socket.
-    const response = await fetcher(candidate, { accept: "image/*" });
-    if (response.status >= 400) {
-      warnings.push(
-        `The ${purpose} could not be fetched (${response.status}).`,
-      );
-      return null;
+  let reason: string | null = null;
+  for (const candidate of urls) {
+    try {
+      // Attacker-chosen, exactly like the page: validated again, on its own socket.
+      const response = await fetcher(candidate, { accept: "image/*" });
+      if (response.status >= 400) {
+        reason = `The ${purpose} could not be fetched (${response.status}).`;
+        continue;
+      }
+      const stored = await storeRemoteImage(ctx, {
+        purpose,
+        bytes: response.body,
+        sourceUrl: candidate,
+      });
+      return { assetId: stored.assetId, state: "staging", image: stored.image };
+    } catch (error) {
+      if (error instanceof UnsafeUrlError) {
+        // Never echoes a resolved address (SEC-05): UnsafeUrlError messages are written for that.
+        reason = `The ${purpose} was rejected: ${error.message.replace(/^This URL can't be fetched: /, "")}`;
+      } else if (isImageRefusal(error)) {
+        reason = `The ${purpose} was rejected: it could not be read as a JPEG, PNG, WebP or AVIF image.`;
+      } else {
+        // Our side failed (image storage, say), not the image: say so, and keep the detail in the
+        // server log rather than in the response (SEC-12).
+        console.error(`[prefill] the ${purpose} could not be stored`, error);
+        warnings.push(
+          `The ${purpose} was found but could not be stored. Check the image storage settings and try again.`,
+        );
+        return null;
+      }
     }
-    const stored = await storeRemoteImage(ctx, {
-      purpose,
-      bytes: response.body,
-      sourceUrl: candidate,
-    });
-    return { assetId: stored.assetId, state: "staging", image: stored.image };
-  } catch (error) {
-    if (error instanceof UnsafeUrlError) {
-      // Never echoes a resolved address (SEC-05): UnsafeUrlError messages are written for that.
-      const reason = error.message.replace(/^This URL can't be fetched: /, "");
-      warnings.push(`The ${purpose} was rejected: ${reason}`);
-    } else if (isImageRefusal(error)) {
-      warnings.push(
-        `The ${purpose} was rejected: it could not be read as a JPEG, PNG or WebP image.`,
-      );
-    } else {
-      // Our side failed (image storage, say), not the image: say so, and keep the detail in the
-      // server log rather than in the response (SEC-12).
-      console.error(`[prefill] the ${purpose} could not be stored`, error);
-      warnings.push(
-        `The ${purpose} was found but could not be stored. Check the image storage settings and try again.`,
-      );
-    }
-    return null;
   }
+  if (reason) warnings.push(reason);
+  return null;
 }
 
 async function guessLocation(
@@ -497,7 +539,7 @@ export async function prefill(
   let name = extracted?.name ?? null;
   let tagline = extracted?.tagline ?? null;
   let description = extracted?.description ?? null;
-  let coverUrl = extracted?.coverUrl ?? null;
+  let coverUrls = extracted?.coverUrls ?? [];
 
   // Only when the page itself yielded nothing worth showing an editor.
   if (name === null && description === null) {
@@ -511,7 +553,11 @@ export async function prefill(
       );
       description = summary;
       tagline = summary && summary.length <= MAX_TAGLINE ? summary : null;
-      coverUrl = absoluteHttps(metadata.ogImage ?? null, target.toString());
+      coverUrls = candidates(
+        [metadata.ogImage],
+        target.toString(),
+        MAX_COVER_CANDIDATES,
+      );
     } else {
       warnings.push(
         "Little could be read from this page; fill the fields in by hand.",
@@ -520,8 +566,8 @@ export async function prefill(
   }
 
   const [logo, cover] = await Promise.all([
-    fetchImage(ctx, fetcher, extracted?.logoUrl ?? null, "logo", warnings),
-    fetchImage(ctx, fetcher, coverUrl, "cover", warnings),
+    fetchImage(ctx, fetcher, extracted?.logoUrls ?? [], "logo", warnings),
+    fetchImage(ctx, fetcher, coverUrls, "cover", warnings),
   ]);
 
   return {

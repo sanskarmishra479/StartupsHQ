@@ -205,6 +205,56 @@ describe("uploads are sniffed and re-encoded (SEC-06)", () => {
     ).rejects.toBeInstanceOf(UnsupportedMediaTypeError);
   });
 
+  it("accepts AVIF, which many sites now serve their logos in, and re-encodes it", async () => {
+    const avif = await sharp({
+      create: { width: 300, height: 300, channels: 3, background: "#22aa66" },
+    })
+      .avif()
+      .toBuffer();
+    const asset = await media.upload(editor, { purpose: "logo", bytes: avif });
+    expect(asset.image.variants.map((variant) => variant.width)).toEqual([
+      64, 128, 256,
+    ]);
+    for (const variant of asset.image.variants) {
+      expect((await sharp(storedBytes(variant.url)).metadata()).format).toBe(
+        "webp",
+      );
+    }
+  });
+
+  /** An ISO BMFF header: box size, `ftyp`, major brand, minor version, compatible brands. */
+  const ftyp = (
+    major: string,
+    compatible: readonly string[],
+    rest = Buffer.alloc(64, 0),
+  ) => {
+    const brands = Buffer.from(
+      [major, "\0\0\0\0", ...compatible].join(""),
+      "latin1",
+    );
+    const size = Buffer.alloc(4);
+    size.writeUInt32BE(8 + brands.byteLength);
+    return Buffer.concat([size, Buffer.from("ftyp"), brands, rest]);
+  };
+
+  it("refuses HEIC and other HEIF files that are not AVIF", async () => {
+    await expect(
+      media.upload(editor, {
+        purpose: "logo",
+        bytes: ftyp("heic", ["mif1", "heic"]),
+      }),
+    ).rejects.toBeInstanceOf(UnsupportedMediaTypeError);
+  });
+
+  it("refuses a file that only claims to be AVIF", async () => {
+    await expect(
+      media.upload(editor, {
+        purpose: "logo",
+        bytes: ftyp("mif1", ["avif", "mif1"]),
+      }),
+    ).rejects.toBeInstanceOf(UnprocessableError);
+  });
+
   it("refuses a file over 5 MB before reading it as an image", async () => {
     await expect(
       media.upload(editor, {

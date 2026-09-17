@@ -36,7 +36,9 @@ import {
 //
 // Nothing is stored as it arrived. Every upload is sniffed by magic bytes, pixel-capped, then
 // re-encoded into fixed-width WebP renditions, which is also what strips EXIF and anything hidden
-// in the original. Accepted inputs are JPEG, PNG and WebP only: SVG means parsing XML, the most
+// in the original. Accepted inputs are JPEG, PNG, WebP and AVIF: AVIF because many company sites
+// now serve their logos only in it (decided 2026-09-17), under the same byte, pixel and decoder
+// limits, and only when the file really is AV1. SVG stays refused: it means parsing XML, the most
 // exploited path in image libraries, and since we always rasterise, accepting it buys nothing but
 // that risk (decided 2026-09-16, tightening SEC-06). Assets start in `staging`; saving a record
 // that references one attaches it, and the GC removes the rest.
@@ -71,7 +73,7 @@ export type UploadedAsset = Readonly<{
 export type UploadInput = Readonly<{ purpose: string; bytes: Uint8Array }>;
 
 /** Magic bytes decide the type; a filename or a declared Content-Type never does (SEC-06). */
-function sniff(bytes: Uint8Array): "jpeg" | "png" | "webp" | null {
+function sniff(bytes: Uint8Array): "jpeg" | "png" | "webp" | "avif" | null {
   if (bytes.byteLength < 12) return null;
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff)
     return "jpeg";
@@ -84,6 +86,22 @@ function sniff(bytes: Uint8Array): "jpeg" | "png" | "webp" | null {
       return bytes[start + index] === character.charCodeAt(0);
     });
   if (ascii(0, "RIFF") && ascii(8, "WEBP")) return "webp";
+
+  // ISO BMFF: an `ftyp` box whose major or compatible brands name AVIF. HEIC and other HEIF
+  // flavours carry different brands and are refused.
+  if (ascii(4, "ftyp")) {
+    const boxSize =
+      ((bytes[0] ?? 0) << 24) |
+      ((bytes[1] ?? 0) << 16) |
+      ((bytes[2] ?? 0) << 8) |
+      (bytes[3] ?? 0);
+    const end = Math.min(boxSize, bytes.byteLength, 128);
+    for (let offset = 8; offset + 4 <= end; offset += 4) {
+      // Offset 12 is the minor version, not a brand.
+      if (offset === 12) continue;
+      if (ascii(offset, "avif") || ascii(offset, "avis")) return "avif";
+    }
+  }
 
   return null;
 }
@@ -123,6 +141,13 @@ async function renderVariants(
   const width = metadata.width ?? 0;
   const height = metadata.height ?? 0;
   if (width < 1 || height < 1) {
+    throw new UnprocessableError("That image could not be read.");
+  }
+  // An AVIF container must hold AV1: anything else in a HEIF box (HEVC, say) is not what we accept.
+  if (
+    sniff(bytes) === "avif" &&
+    (metadata.format !== "heif" || metadata.compression !== "av1")
+  ) {
     throw new UnprocessableError("That image could not be read.");
   }
   // Checked from the header, before any pixel is decoded.
@@ -204,7 +229,7 @@ export async function upload(
   }
   if (sniff(input.bytes) === null) {
     throw new UnsupportedMediaTypeError(
-      "Upload a JPEG, PNG or WebP image. SVG is not accepted — export it as PNG first.",
+      "Upload a JPEG, PNG, WebP or AVIF image. SVG is not accepted — export it as PNG first.",
     );
   }
 
@@ -237,7 +262,7 @@ export async function storeRemoteImage(
   }
   if (sniff(input.bytes) === null) {
     throw new UnsupportedMediaTypeError(
-      "That file is not a JPEG, PNG or WebP image.",
+      "That file is not a JPEG, PNG, WebP or AVIF image.",
     );
   }
   return store(ctx.actor.id, input.purpose, input.bytes, input.sourceUrl);

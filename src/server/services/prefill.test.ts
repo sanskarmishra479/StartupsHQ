@@ -318,6 +318,48 @@ describe("hostile URLs are refused (SEC-05)", () => {
   });
 });
 
+describe("logo candidates", () => {
+  it("skips an icon it cannot use and takes the next one the page names", async () => {
+    const draft = await prefill(
+      editor,
+      { url: PAGE },
+      {
+        fetch: fetcherFor({
+          [PAGE]: {
+            body: page({
+              head: '<link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="icon" href="/broken.png"><link rel="icon" href="/logo.avif">',
+            }),
+          },
+          "https://acme-robotics.example/broken.png": {
+            contentType: "image/png",
+            body: "not really a png",
+          },
+          "https://acme-robotics.example/logo.avif": {
+            contentType: "image/avif",
+            body: await sharp({
+              create: {
+                width: 180,
+                height: 180,
+                channels: 3,
+                background: "#101820",
+              },
+            })
+              .avif()
+              .toBuffer(),
+          },
+        }),
+      },
+    );
+    expect(draft.logo).not.toBeNull();
+    expect(draft.warnings.join(" ")).not.toMatch(/logo/i);
+    const [asset] = await getDb()
+      .select({ sourceUrl: mediaAssets.sourceUrl })
+      .from(mediaAssets)
+      .where(eq(mediaAssets.id, draft.logo?.assetId ?? ""));
+    expect(asset?.sourceUrl).toBe("https://acme-robotics.example/logo.avif");
+  });
+});
+
 describe("when image storage fails", () => {
   afterEach(() => {
     vi.unstubAllEnvs();

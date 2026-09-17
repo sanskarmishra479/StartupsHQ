@@ -8,7 +8,7 @@ import type { Image } from "@/types/public";
 import { ResponsiveImage } from "../../media/ResponsiveImage";
 import { PillButton } from "../../ui/PillButton";
 
-const ACCEPT = "image/png,image/jpeg,image/webp";
+const ACCEPT = "image/png,image/jpeg,image/webp,image/avif";
 const MAX_BYTES = 5 * 1024 * 1024;
 
 type Upload =
@@ -86,7 +86,7 @@ export function MediaField({
     if (!ACCEPT.split(",").includes(file.type)) {
       setState({
         kind: "error",
-        message: "Use a PNG, JPEG or WebP image. SVG is not accepted.",
+        message: "Use a PNG, JPEG, WebP or AVIF image. SVG is not accepted.",
       });
       return;
     }
@@ -168,7 +168,7 @@ export function MediaField({
             )}
           </div>
           <p className="text-fg-subtle text-xs">
-            or drop an image here · PNG, JPEG, WebP · 5 MB
+            or drop an image here · PNG, JPEG, WebP, AVIF · 5 MB
           </p>
         </div>
         <input
